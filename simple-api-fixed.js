@@ -22,6 +22,7 @@ const app = express();
 
 const DEFAULT_ALLOWED_ORIGINS = new Set([
   'https://taiwan-landlord-vietnam-tenant-syst.vercel.app',
+  'https://taiwan-landlord-vietnam-tenant-system-p45l60q8a.vercel.app',
   'http://localhost:3000',
 ]);
 
