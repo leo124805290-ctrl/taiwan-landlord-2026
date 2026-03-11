@@ -20,8 +20,30 @@ const pool = new Pool({
 
 const app = express();
 
+const DEFAULT_ALLOWED_ORIGINS = new Set([
+  'https://taiwan-landlord-vietnam-tenant-syst.vercel.app',
+  'http://localhost:3000',
+]);
+
+function buildAllowedOrigins() {
+  const allowed = new Set(DEFAULT_ALLOWED_ORIGINS);
+  const raw = process.env.CORS_ORIGIN || '';
+  for (const item of raw.split(',')) {
+    const v = item.trim();
+    if (v) allowed.add(v);
+  }
+  return allowed;
+}
+
+const allowedOrigins = buildAllowedOrigins();
+
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || '*',
+  origin(origin, callback) {
+    // curl / server-to-server 可能沒有 Origin header
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.has(origin)) return callback(null, true);
+    return callback(new Error(`Not allowed by CORS: ${origin}`));
+  },
   credentials: true,
 }));
 
@@ -1410,7 +1432,8 @@ app.get('/api/reports/monthly', authenticate, async (req, res) => {
 });
 
 // 全量同步資料
-app.get('/sync/all', authenticate, async (req, res) => {
+// 全量同步資料（API 前綴一致性：保留 /sync/all 相容，同時提供 /api/sync/all）
+async function handleSyncAll(req, res) {
   const client = await pool.connect();
   try {
     const propertiesResult = await client.query(
@@ -1517,7 +1540,10 @@ app.get('/sync/all', authenticate, async (req, res) => {
   } finally {
     client.release();
   }
-});
+}
+
+app.get('/sync/all', authenticate, handleSyncAll);
+app.get('/api/sync/all', authenticate, handleSyncAll);
 // ---------------------------------------------------------------------
 // 入住 / 退租 API（Transaction + 冪等性）
 // ---------------------------------------------------------------------
