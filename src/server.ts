@@ -107,7 +107,7 @@ app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
   const statusCode = 'statusCode' in err ? (err as any).statusCode : 500;
   const message = NODE_ENV === 'production' ? '伺服器內部錯誤' : err.message;
 
-  res.status(statusCode || 500).json(errorResponse(message));
+  return res.status(statusCode || 500).json(errorResponse(message));
 });
 
 // 啟動伺服器

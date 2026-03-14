@@ -37,7 +37,7 @@ export function generateAccessToken(payload: Omit<TokenPayload, 'type'>): string
 
   return jwt.sign(tokenPayload, JWT_SECRET, {
     expiresIn: JWT_EXPIRES_IN,
-  });
+  } as jwt.SignOptions);
 }
 
 // 生成 Refresh Token
@@ -49,7 +49,7 @@ export function generateRefreshToken(payload: Omit<TokenPayload, 'type'>): strin
 
   return jwt.sign(tokenPayload, JWT_SECRET, {
     expiresIn: JWT_REFRESH_EXPIRES_IN,
-  });
+  } as jwt.SignOptions);
 }
 
 // 生成 Token 對（Access + Refresh）

@@ -185,10 +185,10 @@ async function verifyData() {
     managerCount,
     roomCount,
   ] = await Promise.all([
-    db.select({ count: db.count() }).from(schema.users),
-    db.select({ count: db.count() }).from(schema.properties),
-    db.select({ count: db.count() }).from(schema.propertyManagers),
-    db.select({ count: db.count() }).from(schema.rooms),
+    db.select({ count: db.$count() }).from(schema.users),
+    db.select({ count: db.$count() }).from(schema.properties),
+    db.select({ count: db.$count() }).from(schema.propertyManagers),
+    db.select({ count: db.$count() }).from(schema.rooms),
   ]);
 
   console.log(`   - 使用者: ${userCount[0].count} 人`);

@@ -11,7 +11,6 @@ if (!process.env.JWT_SECRET) {
 }
 
 const JWT_SECRET = process.env.JWT_SECRET;
-const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
 
 // 擴展 Express Request 類型
 declare global {
@@ -48,7 +47,7 @@ export class AuthorizationError extends Error {
 // JWT 驗證 middleware
 export const authenticate = async (
   req: Request,
-  res: Response,
+  _res: Response,
   next: NextFunction
 ): Promise<void> => {
   try {
@@ -102,7 +101,7 @@ export const authenticate = async (
 export const requireRole = (allowedRoles: string | string[]) => {
   const roles = Array.isArray(allowedRoles) ? allowedRoles : [allowedRoles];
   
-  return (req: Request, res: Response, next: NextFunction): void => {
+  return (req: Request, _res: Response, next: NextFunction): void => {
     try {
       if (!req.user) {
         throw new AuthenticationError('需要登入才能存取此資源');
@@ -126,7 +125,7 @@ export const requireAdmin = requireRole(['super_admin', 'admin']);
 export const requireSuperAdmin = requireRole('super_admin');
 
 // 登入檢查（僅檢查是否登入，不檢查角色）
-export const requireLogin = (req: Request, res: Response, next: NextFunction): void => {
+export const requireLogin = (req: Request, _res: Response, next: NextFunction): void => {
   try {
     if (!req.user) {
       throw new AuthenticationError('需要登入才能存取此資源');
@@ -140,7 +139,7 @@ export const requireLogin = (req: Request, res: Response, next: NextFunction): v
 // 錯誤處理 middleware（應在最後使用）
 export const authErrorHandler = (
   error: Error,
-  req: Request,
+  _req: Request,
   res: Response,
   next: NextFunction
 ): void => {
