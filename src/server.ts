@@ -3,6 +3,8 @@ import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import dotenv from 'dotenv';
+import authRouter from './routes/auth.js';
+import propertiesRouter from './routes/properties.js';
 
 // 載入環境變數
 dotenv.config();
@@ -79,7 +81,11 @@ app.get('/health', (_req: Request, res: Response) => {
   }));
 });
 
-// API 路由（之後會加入）
+// API 路由
+app.use('/api/auth', authRouter);
+app.use('/api/properties', propertiesRouter);
+
+// 暫時保留舊路由（相容性）
 app.get('/api/v1/properties', (_req: Request, res: Response) => {
   res.json(successResponse([]));
 });
