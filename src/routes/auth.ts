@@ -1,5 +1,5 @@
 import { Router, type Request, type Response } from 'express';
-import { generateAccessToken, generateRefreshToken, generateTokenPair, verifyToken } from '../utils/jwt.js';
+import { generateAccessToken, generateRefreshToken, verifyAccessToken, verifyRefreshToken } from '../utils/jwt.js';
 // import { hashPassword, verifyPassword } from '../utils/password.js';
 // import { db, schema } from '../db/index.js';
 
@@ -169,7 +169,7 @@ router.post('/refresh', async (req: Request, res: Response) => {
     }
 
     // 驗證 refresh token
-    const payload = verifyToken(refreshToken);
+    const payload = verifyRefreshToken(refreshToken);
     if (!payload || payload.type !== 'refresh') {
       return res.status(401).json(errorResponse('無效的刷新令牌'));
     }
@@ -214,7 +214,7 @@ router.get('/me', (req: Request, res: Response) => {
     }
 
     const token = authHeader.split(' ')[1];
-    const payload = verifyToken(token);
+    const payload = verifyAccessToken(token);
 
     if (!payload || payload.type !== 'access') {
       return res.status(401).json(errorResponse('無效的認證憑證'));
