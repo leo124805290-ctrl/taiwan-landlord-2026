@@ -179,28 +179,21 @@ async function createTestRooms(propertyId: string) {
 async function verifyData() {
   console.log('🔍 驗證種子資料...');
 
-  const [
+  const userCount = await db.$count(schema.users);
+  const propertyCount = await db.$count(schema.properties);
+  const managerCount = await db.$count(schema.propertyManagers);
+  const roomCount = await db.$count(schema.rooms);
+
+  console.log(`   - 使用者: ${userCount} 人`);
+  console.log(`   - 物業: ${propertyCount} 棟`);
+  console.log(`   - 管理員關聯: ${managerCount} 個`);
+  console.log(`   - 房間: ${roomCount} 間`);
+
+  return {
     userCount,
     propertyCount,
     managerCount,
     roomCount,
-  ] = await Promise.all([
-    db.select({ count: db.$count() }).from(schema.users),
-    db.select({ count: db.$count() }).from(schema.properties),
-    db.select({ count: db.$count() }).from(schema.propertyManagers),
-    db.select({ count: db.$count() }).from(schema.rooms),
-  ]);
-
-  console.log(`   - 使用者: ${userCount[0].count} 人`);
-  console.log(`   - 物業: ${propertyCount[0].count} 棟`);
-  console.log(`   - 管理員關聯: ${managerCount[0].count} 個`);
-  console.log(`   - 房間: ${roomCount[0].count} 間`);
-
-  return {
-    userCount: Number(userCount[0].count),
-    propertyCount: Number(propertyCount[0].count),
-    managerCount: Number(managerCount[0].count),
-    roomCount: Number(roomCount[0].count),
   };
 }
 
