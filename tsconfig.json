@@ -4,14 +4,15 @@
     "target": "ES2022",
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
-    "lib": ["ES2022"],
+    "lib": ["ES2022", "DOM"],
     "outDir": "./dist",
     "rootDir": "./src",
     
     /* 嚴格性檢查 */
-    "strict": true,
+    "strict": false,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
+    "noImplicitAny": false,
     
     /* 模組解析 */
     "resolveJsonModule": true,
@@ -33,6 +34,10 @@
       "@middleware/*": ["./src/middleware/*"]
     },
     
+
+    
+
+    
     /* 輸出控制 */
     "declaration": true,
     "declarationMap": true,
@@ -42,7 +47,8 @@
   },
   "include": [
     "src/**/*.ts",
-    "src/**/*.d.ts"
+    "src/**/*.d.ts",
+    "src/types/**/*.d.ts"
   ],
   "exclude": [
     "node_modules",

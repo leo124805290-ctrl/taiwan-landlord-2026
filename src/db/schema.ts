@@ -222,14 +222,10 @@ export const payments = pgTable('payments', {
   managementFee: integer('management_fee').notNull().default(0), // 管理費（分）
   otherFees: integer('other_fees').notNull().default(0), // 其他費用（分）
   
-  // 計算欄位（生成）
-  totalAmount: integer('total_amount').generatedAlwaysAs(({ rentAmount, electricityFee, managementFee, otherFees }) => 
-    rentAmount + electricityFee + managementFee + otherFees
-  ).notNull(),
+  // 計算欄位（在應用層計算，非資料庫生成）
+  totalAmount: integer('total_amount').notNull().default(0), // 總金額（分），在應用層計算：rent + electricity + management + other
   paidAmount: integer('paid_amount').notNull().default(0), // 已付金額（分）
-  balance: integer('balance').generatedAlwaysAs(({ totalAmount, paidAmount }) => 
-    totalAmount - paidAmount
-  ).notNull(),
+  balance: integer('balance').notNull().default(0), // 餘額（分），在應用層計算：total - paid
   
   // 付款狀態
   paymentStatus: varchar('payment_status', { length: 50 }).notNull().default('pending'), // 'pending', 'partial', 'paid', 'overdue'

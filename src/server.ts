@@ -3,10 +3,10 @@ import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import dotenv from 'dotenv';
-import authRouter from './routes/auth.ts';
-import propertiesRouter from './routes/properties.ts';
-import roomsRouter from './routes/rooms.ts';
-import checkinRouter from './routes/checkin.ts';
+import authRouter from './routes/auth.js';
+import propertiesRouter from './routes/properties.js';
+import roomsRouter from './routes/rooms.js';
+import checkinRouter from './routes/checkin.js';
 
 // 載入環境變數
 dotenv.config();

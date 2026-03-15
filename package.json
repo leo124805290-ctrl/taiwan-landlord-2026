@@ -24,7 +24,6 @@
   "author": "OpenClaw Assistant",
   "license": "MIT",
   "dependencies": {
-    "@types/node": "^25.5.0",
     "bcrypt": "^5.1.1",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
@@ -41,6 +40,7 @@
     "@types/express": "^5.0.6",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/morgan": "^1.9.10",
+    "@types/node": "^25.5.0",
     "drizzle-kit": "^0.28.1",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3"

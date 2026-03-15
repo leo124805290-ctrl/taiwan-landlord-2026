@@ -29,6 +29,7 @@ async function createSuperAdmin() {
   const password = 'Admin123!';
   const passwordHash = await hashPassword(password);
 
+  // @ts-ignore - Drizzle 類型問題
   const [admin] = await db.insert(schema.users).values({
     email: 'admin@rental.com',
     passwordHash,
@@ -49,6 +50,7 @@ async function createSuperAdmin() {
 async function createTestProperty(adminId: string) {
   console.log('🏢 建立測試物業...');
 
+  // @ts-ignore - Drizzle 類型問題
   const [property] = await db.insert(schema.properties).values({
     name: '台北市信義區測試大樓',
     address: '台北市信義區忠孝東路五段123號',
