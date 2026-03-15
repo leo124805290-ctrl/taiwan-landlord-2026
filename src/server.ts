@@ -15,6 +15,7 @@ import checkoutRouter from './routes/checkout.js';
 import expensesRouter from './routes/expenses.js';
 import incomesRouter from './routes/incomes.js';
 import reportsRouter from './routes/reports.js';
+import maintenanceRouter from './routes/maintenance.js';
 
 // 載入環境變數
 dotenv.config();
@@ -104,6 +105,7 @@ app.use('/api/checkout', checkoutRouter);
 app.use('/api/expenses', expensesRouter);
 app.use('/api/incomes', incomesRouter);
 app.use('/api/reports', reportsRouter);
+app.use('/api/maintenance', maintenanceRouter);
 
 // 暫時保留舊路由（相容性）
 app.get('/api/v1/properties', (_req: Request, res: Response) => {
