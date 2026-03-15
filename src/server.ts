@@ -11,6 +11,7 @@ import checkinRouter from './routes/checkin.js';
 import paymentsRouter from './routes/payments.js';
 import meterReadingsRouter from './routes/meter-readings.js';
 import depositsRouter from './routes/deposits.js';
+import checkoutRouter from './routes/checkout.js';
 
 // 載入環境變數
 dotenv.config();
@@ -96,6 +97,7 @@ app.use('/api/checkin', checkinRouter);
 app.use('/api/payments', paymentsRouter);
 app.use('/api/meter-readings', meterReadingsRouter);
 app.use('/api/deposits', depositsRouter);
+app.use('/api/checkout', checkoutRouter);
 
 // 暫時保留舊路由（相容性）
 app.get('/api/v1/properties', (_req: Request, res: Response) => {
