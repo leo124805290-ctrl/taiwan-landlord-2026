@@ -5,6 +5,8 @@ import morgan from 'morgan';
 import dotenv from 'dotenv';
 import authRouter from './routes/auth.ts';
 import propertiesRouter from './routes/properties.ts';
+import roomsRouter from './routes/rooms.ts';
+import checkinRouter from './routes/checkin.ts';
 
 // 載入環境變數
 dotenv.config();
@@ -84,6 +86,8 @@ app.get('/health', (_req: Request, res: Response) => {
 // API 路由
 app.use('/api/auth', authRouter);
 app.use('/api/properties', propertiesRouter);
+app.use('/api/rooms', roomsRouter);
+app.use('/api/checkin', checkinRouter);
 
 // 暫時保留舊路由（相容性）
 app.get('/api/v1/properties', (_req: Request, res: Response) => {
