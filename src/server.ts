@@ -6,7 +6,9 @@ import dotenv from 'dotenv';
 import authRouter from './routes/auth.js';
 import propertiesRouter from './routes/properties.js';
 import roomsRouter from './routes/rooms.js';
+import tenantsRouter from './routes/tenants.js';
 import checkinRouter from './routes/checkin.js';
+import paymentsRouter from './routes/payments.js';
 
 // 載入環境變數
 dotenv.config();
@@ -87,7 +89,9 @@ app.get('/health', (_req: Request, res: Response) => {
 app.use('/api/auth', authRouter);
 app.use('/api/properties', propertiesRouter);
 app.use('/api/rooms', roomsRouter);
+app.use('/api/tenants', tenantsRouter);
 app.use('/api/checkin', checkinRouter);
+app.use('/api/payments', paymentsRouter);
 
 // 暫時保留舊路由（相容性）
 app.get('/api/v1/properties', (_req: Request, res: Response) => {
