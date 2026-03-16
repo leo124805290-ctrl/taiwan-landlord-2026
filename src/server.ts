@@ -18,6 +18,7 @@ import reportsRouter from './routes/reports.js';
 import maintenanceRouter from './routes/maintenance.js';
 import usersRouter from './routes/users.js';
 import { autoMigrate } from './db/migrate.js';
+import { queryClient } from './db/index.js';
 
 // 載入環境變數
 dotenv.config();
@@ -92,6 +93,46 @@ app.get('/health', (_req: Request, res: Response) => {
     service: 'taiwan-landlord-backend-v2',
     version: '2.0.0'
   }));
+});
+
+// 資料庫除錯端點
+app.get('/api/debug/db-status', async (_req: Request, res: Response) => {
+  try {
+    const tables = await queryClient`
+      SELECT table_name 
+      FROM information_schema.tables 
+      WHERE table_schema = 'public'
+      ORDER BY table_name
+    `;
+    
+    const counts: Record<string, number> = {};
+    for (const t of tables) {
+      try {
+        const result = await queryClient`
+          SELECT COUNT(*) as count FROM ${queryClient(t.table_name)}
+        `;
+        counts[t.table_name] = Number(result[0].count);
+      } catch {
+        counts[t.table_name] = -1; // 查詢失敗
+      }
+    }
+
+    res.json({
+      success: true,
+      data: {
+        tables: tables.map(t => t.table_name),
+        tableCount: tables.length,
+        rowCounts: counts,
+      },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error instanceof Error ? error.message : '未知錯誤',
+      timestamp: new Date().toISOString()
+    });
+  }
 });
 
 // API 路由
