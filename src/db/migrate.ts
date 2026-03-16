@@ -1,22 +1,9 @@
 import { queryClient } from './index.js';
 
 export async function autoMigrate() {
-  console.log('🔧 檢查資料庫結構...');
+  console.log('🔧 自動建立資料庫表（使用 IF NOT EXISTS）...');
   
   try {
-    // 檢查 users 表是否存在
-    const tableCheck = await queryClient`
-      SELECT EXISTS (
-        SELECT FROM information_schema.tables 
-        WHERE table_name = 'users'
-      )
-    `;
-    
-    if (tableCheck[0].exists) {
-      console.log('✅ 資料庫表已存在，跳過建立');
-      return;
-    }
-
     console.log('📦 建立資料庫表...');
 
     // 按順序建表（注意外鍵依賴）
