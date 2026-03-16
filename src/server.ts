@@ -17,6 +17,7 @@ import incomesRouter from './routes/incomes.js';
 import reportsRouter from './routes/reports.js';
 import maintenanceRouter from './routes/maintenance.js';
 import usersRouter from './routes/users.js';
+import { autoMigrate } from './db/migrate.js';
 
 // 載入環境變數
 dotenv.config();
@@ -140,9 +141,10 @@ app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
   return res.status(statusCode || 500).json(errorResponse(message));
 });
 
-// 啟動伺服器
-app.listen(PORT, () => {
-  console.log(`
+// 啟動伺服器（先建表再啟動）
+autoMigrate().then(() => {
+  app.listen(PORT, () => {
+    console.log(`
 🚀 台灣房東越南租客管理系統後端 v2.0
 ✅ 環境: ${NODE_ENV}
 📡 埠號: ${PORT}
@@ -152,7 +154,11 @@ app.listen(PORT, () => {
    ├── GET  /health
    ├── GET  /api/v1/properties
    └── ...
-  `);
+    `);
+  });
+}).catch((err) => {
+  console.error('❌ 資料庫初始化失敗，無法啟動:', err);
+  process.exit(1);
 });
 
 // Graceful shutdown
