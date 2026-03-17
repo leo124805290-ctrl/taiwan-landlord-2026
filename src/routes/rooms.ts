@@ -37,6 +37,18 @@ interface RoomRequest {
   status: string; // 'vacant', 'occupied', 'reserved', 'maintenance'
 }
 
+// 批次建立房間請求格式
+interface RoomBulkRequest {
+  propertyId: string;
+  rooms: Array<{
+    roomNumber: string;
+    floor: number;
+    monthlyRent: number;
+    depositAmount: number;
+    electricityRate?: number;
+  }>;
+}
+
 const router = Router();
 
 /**
@@ -92,6 +104,48 @@ router.get('/:id', async (req: Request, res: Response) => {
     console.error('❌ 取得房間詳細資訊錯誤:', error);
     return res.status(500).json(errorResponse('伺服器內部錯誤'));
   }
+});
+
+/**
+ * POST /api/rooms/bulk
+ * 批次建立房間
+ */
+router.post('/bulk', async (req: Request, res: Response, next) => {
+ try {
+ const { propertyId, rooms: roomsData } = req.body as RoomBulkRequest;
+ 
+ if (!propertyId || !Array.isArray(roomsData) || roomsData.length === 0) {
+ return res.status(400).json({
+ success: false,
+ message: '缺少 propertyId 或 rooms 資料',
+ timestamp: new Date().toISOString()
+ });
+ }
+
+ const created = [];
+ for (const room of roomsData) {
+ // @ts-ignore
+ const [newRoom] = await db.insert(schema.rooms).values({
+ propertyId,
+ roomNumber: room.roomNumber,
+ floor: room.floor,
+ monthlyRent: room.monthlyRent,
+ depositAmount: room.depositAmount,
+ electricityRate: room.electricityRate || 350,
+ status: 'vacant',
+ }).returning();
+ created.push(newRoom);
+ }
+
+ return res.json({
+ success: true,
+ data: created,
+ message: `成功建立 ${created.length} 間房間`,
+ timestamp: new Date().toISOString()
+ });
+ } catch (error) {
+ next(error);
+ }
 });
 
 /**
