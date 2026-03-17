@@ -1,3 +1,4 @@
+// 確保 autoMigrate 和 debug 端點正確部署
 import express, { type Request, type Response, type NextFunction } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
