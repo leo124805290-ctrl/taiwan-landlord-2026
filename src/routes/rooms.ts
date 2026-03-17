@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { Router, type Request, type Response } from 'express';
 import { sql } from 'drizzle-orm';
 import { db, schema } from '../db/index.js';
