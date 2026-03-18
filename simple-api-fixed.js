@@ -20,6 +20,23 @@ const pool = new Pool({
 
 const app = express();
 
+async function ensurePropertyStatusColumn() {
+  const client = await pool.connect();
+  try {
+    await client.query(
+      `ALTER TABLE properties
+       ADD COLUMN IF NOT EXISTS status VARCHAR(20) NOT NULL DEFAULT 'active'`,
+    );
+    await client.query(
+      `UPDATE properties
+       SET status = 'active'
+       WHERE status IS NULL OR status = ''`,
+    );
+  } finally {
+    client.release();
+  }
+}
+
 const DEFAULT_ALLOWED_ORIGINS = new Set([
   'https://taiwan-landlord-vietnam-tenant-syst.vercel.app',
   'https://taiwan-landlord-vietnam-tenant-system-p45l60q8a.vercel.app',
@@ -243,9 +260,14 @@ app.get('/api/auth/me', authenticate, async (req, res) => {
 app.get('/api/properties', authenticate, async (req, res) => {
   const client = await pool.connect();
   try {
-    const result = await client.query(
-      'SELECT id, name, address, created_at FROM properties ORDER BY id ASC',
-    );
+    const { include_archived } = req.query || {};
+    const includeArchived = String(include_archived) === 'true';
+
+    const sql = includeArchived
+      ? 'SELECT id, name, address, status, created_at FROM properties ORDER BY id ASC'
+      : "SELECT id, name, address, status, created_at FROM properties WHERE status IN ('active','demo') ORDER BY id ASC";
+
+    const result = await client.query(sql);
     return res.json({ success: true, data: result.rows });
   } catch (err) {
     console.error('[/api/properties GET] error:', err);
@@ -261,16 +283,20 @@ app.post(
   authenticate,
   requireRole(['superadmin', 'staff']),
   async (req, res) => {
-    const { name, address } = req.body || {};
+    const { name, address, status, is_demo } = req.body || {};
     if (!name) {
       return sendError(res, 400, 'Property name is required', 'VALIDATION_ERROR');
     }
 
+    const allowedStatus = new Set(['active', 'archived', 'demo']);
+    const finalStatus =
+      allowedStatus.has(status) ? status : (is_demo ? 'demo' : 'active');
+
     const client = await pool.connect();
     try {
       const result = await client.query(
-        'INSERT INTO properties (name, address) VALUES ($1, $2) RETURNING id, name, address, created_at',
-        [name, address || null],
+        'INSERT INTO properties (name, address, status) VALUES ($1, $2, $3) RETURNING id, name, address, status, created_at',
+        [name, address || null, finalStatus],
       );
       return res.json({ success: true, data: result.rows[0] });
     } catch (err) {
@@ -297,7 +323,7 @@ app.put(
     const client = await pool.connect();
     try {
       const result = await client.query(
-        'UPDATE properties SET name = $1, address = $2 WHERE id = $3 RETURNING id, name, address, created_at',
+        'UPDATE properties SET name = $1, address = $2 WHERE id = $3 RETURNING id, name, address, status, created_at',
         [name, address || null, id],
       );
 
@@ -324,10 +350,17 @@ app.delete(
     const { id } = req.params;
     const client = await pool.connect();
     try {
-      const result = await client.query('DELETE FROM properties WHERE id = $1', [id]);
-      if (result.rowCount === 0) {
+      const statusResult = await client.query('SELECT status FROM properties WHERE id = $1', [id]);
+      if (statusResult.rowCount === 0) {
         return sendError(res, 404, 'Property not found', 'NOT_FOUND');
       }
+
+      const status = statusResult.rows[0].status;
+      if (status !== 'demo') {
+        return sendError(res, 403, 'Only demo properties can be deleted', 'PROPERTY_DELETE_NOT_ALLOWED');
+      }
+
+      await client.query('DELETE FROM properties WHERE id = $1', [id]);
       return res.json({ success: true, data: null });
     } catch (err) {
       console.error('[/api/properties/:id DELETE] error:', err);
@@ -338,16 +371,75 @@ app.delete(
   },
 );
 
+// 封存物業（active/demo -> archived）
+app.patch(
+  '/api/properties/:id/archive',
+  authenticate,
+  requireRole(['superadmin', 'staff']),
+  async (req, res) => {
+    const { id } = req.params;
+    const client = await pool.connect();
+    try {
+      const result = await client.query(
+        `UPDATE properties
+         SET status = 'archived'
+         WHERE id = $1
+         RETURNING id, name, address, status, created_at`,
+        [id],
+      );
+      if (result.rowCount === 0) {
+        return sendError(res, 404, 'Property not found', 'NOT_FOUND');
+      }
+      return res.json({ success: true, data: result.rows[0] });
+    } catch (err) {
+      console.error('[/api/properties/:id archive PATCH] error:', err);
+      return sendError(res, 500, 'Failed to archive property', 'INTERNAL_ERROR');
+    } finally {
+      client.release();
+    }
+  },
+);
+
+// 恢復物業（archived -> active）
+app.patch(
+  '/api/properties/:id/restore',
+  authenticate,
+  requireRole(['superadmin', 'staff']),
+  async (req, res) => {
+    const { id } = req.params;
+    const client = await pool.connect();
+    try {
+      const result = await client.query(
+        `UPDATE properties
+         SET status = 'active'
+         WHERE id = $1
+         RETURNING id, name, address, status, created_at`,
+        [id],
+      );
+      if (result.rowCount === 0) {
+        return sendError(res, 404, 'Property not found', 'NOT_FOUND');
+      }
+      return res.json({ success: true, data: result.rows[0] });
+    } catch (err) {
+      console.error('[/api/properties/:id restore PATCH] error:', err);
+      return sendError(res, 500, 'Failed to restore property', 'INTERNAL_ERROR');
+    } finally {
+      client.release();
+    }
+  },
+);
+
 // 取得房間列表（可依物業過濾）
 app.get('/api/rooms', authenticate, async (req, res) => {
   const { property_id } = req.query || {};
   const params = [];
-  let where = '';
+  const conditions = [`properties.status IN ('active','demo')`];
 
   if (property_id) {
     params.push(property_id);
-    where = 'WHERE property_id = $1';
+    conditions.push(`rooms.property_id = $${params.length}`);
   }
+  const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
 
   const client = await pool.connect();
   try {
@@ -361,13 +453,14 @@ app.get('/api/rooms', authenticate, async (req, res) => {
     );
 
     const result = await client.query(
-      `SELECT id, property_id, floor, room_number, monthly_rent, deposit, status,
-              tenant_name, check_in_date, check_out_date,
-              current_meter, previous_meter,
-              locked_by, locked_at, created_at
+      `SELECT rooms.id, rooms.property_id, rooms.floor, rooms.room_number, rooms.monthly_rent, rooms.deposit, rooms.status,
+              rooms.tenant_name, rooms.check_in_date, rooms.check_out_date,
+              rooms.current_meter, rooms.previous_meter,
+              rooms.locked_by, rooms.locked_at, rooms.created_at
        FROM rooms
+       INNER JOIN properties ON rooms.property_id = properties.id
        ${where}
-       ORDER BY id ASC`,
+       ORDER BY rooms.id ASC`,
       params,
     );
 
@@ -1438,7 +1531,7 @@ async function handleSyncAll(req, res) {
   const client = await pool.connect();
   try {
     const propertiesResult = await client.query(
-      'SELECT id, name, address, created_at FROM properties ORDER BY id ASC',
+      'SELECT id, name, address, status, created_at FROM properties ORDER BY id ASC',
     );
 
     const roomsResult = await client.query(
@@ -1485,6 +1578,7 @@ async function handleSyncAll(req, res) {
       id: p.id,
       name: p.name,
       address: p.address,
+      status: p.status,
       rooms: [],
       payments: [],
       history: [],
@@ -1958,7 +2052,16 @@ app.get('/health', (req, res) => {
 // 啟動伺服器
 // ---------------------------------------------------------------------
 
-app.listen(PORT, () => {
-  console.log(`Server listening on port ${PORT}`);
-});
+ensurePropertyStatusColumn()
+  .then(() => {
+    app.listen(PORT, () => {
+      console.log(`Server listening on port ${PORT}`);
+    });
+  })
+  .catch((err) => {
+    console.error('[WARN] ensurePropertyStatusColumn failed:', err);
+    app.listen(PORT, () => {
+      console.log(`Server listening on port ${PORT}`);
+    });
+  });
 
