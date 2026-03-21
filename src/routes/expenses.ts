@@ -11,7 +11,7 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
  try {
  const { propertyId, type, category } = req.query;
 
- // 明確選擇欄位，排除可能不存在的 receipt_url
+ // 明確選擇欄位
  const allExpenses = await db.select({
    id: expenses.id,
    propertyId: expenses.propertyId,
@@ -21,6 +21,7 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
    amount: expenses.amount,
    expenseDate: expenses.expenseDate,
    description: expenses.description,
+   receiptUrl: expenses.receiptUrl,
    recurring: expenses.recurring,
    recurringPeriod: expenses.recurringPeriod,
    createdAt: expenses.createdAt,
@@ -83,6 +84,7 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
    amount: expenses.amount,
    expenseDate: expenses.expenseDate,
    description: expenses.description,
+   receiptUrl: expenses.receiptUrl,
    recurring: expenses.recurring,
    recurringPeriod: expenses.recurringPeriod,
    createdAt: expenses.createdAt,
@@ -119,6 +121,7 @@ router.put('/:id', async (req: Request, res: Response, next: NextFunction) => {
    amount: expenses.amount,
    expenseDate: expenses.expenseDate,
    description: expenses.description,
+   receiptUrl: expenses.receiptUrl,
    recurring: expenses.recurring,
    recurringPeriod: expenses.recurringPeriod,
    createdAt: expenses.createdAt,
@@ -162,6 +165,7 @@ router.delete('/:id', async (req: Request, res: Response, next: NextFunction) =>
    amount: expenses.amount,
    expenseDate: expenses.expenseDate,
    description: expenses.description,
+   receiptUrl: expenses.receiptUrl,
    recurring: expenses.recurring,
    recurringPeriod: expenses.recurringPeriod,
    createdAt: expenses.createdAt,
