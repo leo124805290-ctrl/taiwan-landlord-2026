@@ -17,7 +17,7 @@ npm run dev
 - **[docs/ADMIN_FRONTEND.md](./docs/ADMIN_FRONTEND.md)** — 規範、環境變數、`Authorization`、範例程式
 - **[docs/VERCEL.md](./docs/VERCEL.md)** — 專案 ID、`VERCEL_TOKEN`、`GET /api/vercel/deployments` 代理
 
-前端 Vercel 專案 **`rental-frontend-2026`**（ID `prj_gJxuPPShWviozx4o6SPgwlhAChVQ`）綁定檔見 **`rental-frontend/.vercel/project.json`**；實際 Next.js 程式應置於 `rental-frontend/` 或將該目錄與獨立 repo 同步。
+前端 Vercel 專案 **`rental-frontend-2026`**（ID `prj_gJxuPPShWviozx4o6SPgwlhAChVQ`）：Next.js 程式在 **`rental-frontend/`**（見該目錄 `README.md`、**`lib/api.ts`** 單一 API 客戶端）。
 
 後端端點範例：`POST /api/admin/clear-all-data`（body: `{ "confirm": "CLEAR_ALL" }`）。
 
