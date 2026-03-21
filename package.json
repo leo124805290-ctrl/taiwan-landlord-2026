@@ -12,7 +12,8 @@
     "db:migrate": "drizzle-kit migrate",
     "db:seed": "tsx src/db/seed.ts",
     "db:studio": "drizzle-kit studio",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "vercel:frontend:deployments": "node scripts/vercel-list-frontend-deployments.mjs"
   },
   "keywords": [
     "taiwan-landlord",
