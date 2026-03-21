@@ -74,7 +74,7 @@ router.post('/login', async (req: Request, res: Response) => {
       id: 'test-user-id',
       email: 'test@rental.com',
       fullName: '測試使用者',
-      role: 'admin'
+      role: 'super_admin'
     };
 
     // 生成測試 token
