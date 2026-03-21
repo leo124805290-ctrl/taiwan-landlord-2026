@@ -59,9 +59,17 @@ const router = Router();
 router.post('/complete', async (req: Request, res: Response) => {
   try {
     const result = await db.transaction(async (tx) => {
-      const checkinData = req.body as CheckinRequest;
+      const raw = req.body as CheckinRequest & { paymentAmount?: number };
+      const paidAmountResolved =
+        raw.paidAmount !== undefined && raw.paidAmount !== null
+          ? raw.paidAmount
+          : raw.paymentAmount;
+      const checkinData: CheckinRequest = {
+        ...raw,
+        paidAmount: paidAmountResolved ?? 0,
+      };
 
-      // 驗證必要欄位
+      // 驗證必要欄位（paidAmount 可來自 paymentAmount）
       const requiredFields = ['roomId', 'nameZh', 'nameVi', 'phone', 'paymentType', 'rentAmount', 'depositAmount', 'paidAmount'];
       for (const field of requiredFields) {
         if (checkinData[field as keyof CheckinRequest] === undefined || checkinData[field as keyof CheckinRequest] === null) {
