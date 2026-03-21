@@ -35,7 +35,7 @@ const router = Router();
  * 注意：
  * - 多數表使用 deleted_at（軟刪除）
  * - meter_readings / checkout_settlements 沒有 deleted_at，改用硬刪除
- * - 需要 super_admin 權限
+ * - 需要 JWT；角色：super_admin 或 admin
  */
 router.post(
   '/clear-all-data',
