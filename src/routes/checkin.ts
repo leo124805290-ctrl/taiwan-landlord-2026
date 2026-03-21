@@ -57,9 +57,8 @@ const router = Router();
  * 使用 database transaction 確保數據一致性
  */
 router.post('/complete', async (req: Request, res: Response) => {
-  // 開始 transaction
-  const transaction = await db.transaction(async (tx) => {
-    try {
+  try {
+    const result = await db.transaction(async (tx) => {
       const checkinData = req.body as CheckinRequest;
 
       // 驗證必要欄位
@@ -158,19 +157,28 @@ router.post('/complete', async (req: Request, res: Response) => {
       if (checkinData.rentAmount > 0 && checkinData.paidAmount > 0) {
         // 計算當前月份（YYYY-MM 格式）
         const currentMonth = new Date().toISOString().slice(0, 7);
-        
+        const rent = checkinData.rentAmount;
+        const elec = 0;
+        const mgmt = 0;
+        const other = 0;
+        const paid = checkinData.paidAmount;
+        const totalAmount = rent + elec + mgmt + other;
+        const balance = totalAmount - paid;
+
         // @ts-ignore - Drizzle 類型問題，待 schema 對齊後修復
         await tx.insert(schema.payments) // @ts-ignore - Drizzle 類型問題，待 schema 對齊後修復
                     .values({
           roomId: checkinData.roomId,
           tenantId: newTenant.id,
           paymentMonth: currentMonth,
-          rentAmount: checkinData.rentAmount,
-          electricityFee: 0,
-          managementFee: 0,
-          otherFees: 0,
-          paidAmount: checkinData.paidAmount,
-          paymentStatus: checkinData.paidAmount >= checkinData.rentAmount ? 'paid' : 'partial',
+          rentAmount: rent,
+          electricityFee: elec,
+          managementFee: mgmt,
+          otherFees: other,
+          totalAmount,
+          paidAmount: paid,
+          balance,
+          paymentStatus: paid >= totalAmount ? 'paid' : 'partial',
           paymentDate: new Date(),
           paymentMethod: checkinData.paymentMethod || 'cash',
           notes: checkinData.paymentNotes || null,
@@ -186,17 +194,20 @@ router.post('/complete', async (req: Request, res: Response) => {
         roomStatus: newRoomStatus,
         message: '入住流程完成'
       };
-    } catch (error) {
-      console.error('❌ 入住流程 transaction 錯誤:', error);
-      throw error; // transaction 會自動回滾
-    }
-  });
+    });
 
-  try {
-    return res.status(201).json(successResponse(transaction));
+    return res.status(201).json(successResponse(result));
   } catch (error) {
     console.error('❌ 入住流程錯誤:', error);
-    return res.status(500).json(errorResponse('伺服器內部錯誤'));
+    const message = error instanceof Error ? error.message : '伺服器內部錯誤';
+    const isClient =
+      typeof message === 'string' &&
+      (message.startsWith('請提供') ||
+        message.startsWith('指定的房間') ||
+        message.startsWith('房間目前不可入住') ||
+        message.startsWith('房間所屬的物業') ||
+        message.startsWith('無效的付款類型'));
+    return res.status(isClient ? 400 : 500).json(errorResponse(message));
   }
 });
 
