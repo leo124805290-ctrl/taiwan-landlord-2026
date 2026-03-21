@@ -368,4 +368,87 @@ router.patch('/:id/role', authenticate, requireSuperAdmin, async (req: Request, 
   }
 });
 
+/**
+ * POST /api/users/clear-all-data
+ * 清除所有業務資料（保留使用者帳戶）
+ * 僅限 super_admin 使用
+ */
+router.post('/clear-all-data', requireSuperAdmin, async (req: Request, res: Response) => {
+  try {
+    const { confirm }: { confirm?: string } = req.body;
+    
+    // 安全確認：需要明確的確認文字
+    if (confirm !== 'CLEAR_ALL') {
+      return res.status(400).json(errorResponse('請提供確認文字 "CLEAR_ALL" 以執行此操作'));
+    }
+
+    // 開始資料庫交易，確保全部成功或全部失敗
+    await db.transaction(async (tx) => {
+      console.log('🚨 開始清除所有業務資料（保留使用者帳戶）...');
+
+      // 按正確順序清除資料（考慮外鍵約束）
+      // 1. 先清除有外鍵依賴的表
+      await tx.delete(schema.propertyManagers);
+      console.log('✅ 已清除 property_managers 表');
+      
+      await tx.delete(schema.deposits);
+      console.log('✅ 已清除 deposits 表');
+      
+      await tx.delete(schema.meterReadings);
+      console.log('✅ 已清除 meter_readings 表');
+      
+      await tx.delete(schema.payments);
+      console.log('✅ 已清除 payments 表');
+      
+      await tx.delete(schema.checkoutSettlements);
+      console.log('✅ 已清除 checkout_settlements 表');
+      
+      await tx.delete(schema.expenses);
+      console.log('✅ 已清除 expenses 表');
+      
+      await tx.delete(schema.extraIncomes);
+      console.log('✅ 已清除 extra_incomes 表');
+      
+      await tx.delete(schema.maintenance);
+      console.log('✅ 已清除 maintenance 表');
+      
+      await tx.delete(schema.tenants);
+      console.log('✅ 已清除 tenants 表');
+      
+      // 2. 清除房間資料
+      await tx.delete(schema.rooms);
+      console.log('✅ 已清除 rooms 表');
+      
+      // 3. 最後清除物業資料
+      await tx.delete(schema.properties);
+      console.log('✅ 已清除 properties 表');
+      
+      // 注意：users 表保留不刪除
+      console.log('✅ 使用者帳戶已保留');
+    });
+
+    console.log('🎉 所有業務資料清除完成，使用者帳戶已保留');
+    return res.status(200).json(successResponse({
+      message: '所有業務資料已清除，使用者帳戶已保留',
+      clearedTables: [
+        'property_managers',
+        'deposits', 
+        'meter_readings',
+        'payments',
+        'checkout_settlements',
+        'expenses',
+        'extra_incomes',
+        'maintenance',
+        'tenants',
+        'rooms',
+        'properties'
+      ],
+      retainedTables: ['users']
+    }));
+  } catch (error) {
+    console.error('❌ 清除所有資料錯誤:', error);
+    return res.status(500).json(errorResponse('清除資料時發生錯誤'));
+  }
+});
+
 export default router;
