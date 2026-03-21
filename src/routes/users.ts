@@ -3,6 +3,7 @@ import { Router, type Request, type Response } from 'express';
 import { sql, eq, and } from 'drizzle-orm';
 import { db, schema } from '../db/index.js';
 import { hashPassword } from '../utils/password.js';
+import { authenticate, requireSuperAdmin } from '../middleware/auth.js';
 
 // 統一 API 回應格式
 interface ApiResponse<T = any> {
@@ -51,23 +52,12 @@ interface ChangeRoleRequest {
 
 const router = Router();
 
-// 驗證超級管理員權限（簡易版，實際應使用 JWT 中間件）
-function requireSuperAdmin(req: Request, res: Response, next: Function) {
-  // 注意：這裡是簡易版驗證，正式版應整合 JWT 中間件
-  // 假設 req.user 已由認證中間件設定
-  const user = (req as any).user;
-  if (!user || user.role !== 'super_admin') {
-    return res.status(403).json(errorResponse('需要超級管理員權限'));
-  }
-  next();
-}
-
 /**
  * GET /api/users
  * 取得使用者列表（只有 super_admin 能用）
  * 排除已軟刪除的使用者
  */
-router.get('/', requireSuperAdmin, async (_req: Request, res: Response) => {
+router.get('/', authenticate, requireSuperAdmin, async (_req: Request, res: Response) => {
   try {
     const users = await db.select({
       id: schema.users.id,
@@ -138,7 +128,7 @@ router.get('/:id', async (req: Request, res: Response) => {
  * POST /api/users
  * 建立管理員帳號（只有 super_admin 能用）
  */
-router.post('/', requireSuperAdmin, async (req: Request, res: Response) => {
+router.post('/', authenticate, requireSuperAdmin, async (req: Request, res: Response) => {
   try {
     const { email, password, fullName, phone, role = 'admin' }: UserCreateRequest = req.body;
 
@@ -328,7 +318,7 @@ router.delete('/:id', async (req: Request, res: Response) => {
  * PATCH /api/users/:id/role
  * 修改使用者角色（只有 super_admin 能用）
  */
-router.patch('/:id/role', requireSuperAdmin, async (req: Request, res: Response) => {
+router.patch('/:id/role', authenticate, requireSuperAdmin, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { role }: ChangeRoleRequest = req.body;

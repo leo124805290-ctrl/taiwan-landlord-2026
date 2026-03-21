@@ -1,5 +1,73 @@
 import { queryClient } from './index.js';
 
+/**
+ * 舊版 autoMigrate 建立的 maintenance 欄位名與 Drizzle schema 不一致。
+ * 此函式可重複執行：僅在「舊欄存在且新欄不存在」時 RENAME，並補上 schema 需要但舊表沒有的欄位。
+ */
+async function alignLegacyMaintenanceColumns(): Promise<void> {
+  console.log('🔧 檢查 maintenance 表欄位與 Drizzle schema 對齊…');
+  try {
+    await queryClient.unsafe(`
+DO $$
+BEGIN
+  IF to_regclass('public.maintenance') IS NULL THEN
+    RETURN;
+  END IF;
+
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'maintenance' AND column_name = 'cost_estimate'
+  ) AND NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'maintenance' AND column_name = 'estimated_cost'
+  ) THEN
+    ALTER TABLE maintenance RENAME COLUMN cost_estimate TO estimated_cost;
+  END IF;
+
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'maintenance' AND column_name = 'reported_date'
+  ) AND NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'maintenance' AND column_name = 'reported_at'
+  ) THEN
+    ALTER TABLE maintenance RENAME COLUMN reported_date TO reported_at;
+  END IF;
+
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'maintenance' AND column_name = 'scheduled_date'
+  ) AND NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'maintenance' AND column_name = 'started_at'
+  ) THEN
+    ALTER TABLE maintenance RENAME COLUMN scheduled_date TO started_at;
+  END IF;
+
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'maintenance' AND column_name = 'completed_date'
+  ) AND NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'maintenance' AND column_name = 'completed_at'
+  ) THEN
+    ALTER TABLE maintenance RENAME COLUMN completed_date TO completed_at;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'maintenance' AND column_name = 'reported_by'
+  ) THEN
+    ALTER TABLE maintenance ADD COLUMN reported_by UUID REFERENCES users(id);
+  END IF;
+END $$;
+`);
+    console.log('✅ maintenance 欄位對齊檢查完成');
+  } catch (err) {
+    console.error('❌ maintenance 欄位對齊失敗（不阻斷啟動）:', err);
+  }
+}
+
 export async function autoMigrate() {
   console.log('🔧 自動建立資料庫表（使用 IF NOT EXISTS）...');
   
@@ -268,14 +336,14 @@ export async function autoMigrate() {
           description TEXT,
           category VARCHAR(50) NOT NULL,
           status VARCHAR(50) NOT NULL DEFAULT 'pending',
-          priority VARCHAR(50) DEFAULT 'normal',
-          reported_date TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-          scheduled_date TIMESTAMPTZ,
-          completed_date TIMESTAMPTZ,
-          cost_estimate INTEGER,
-          actual_cost INTEGER,
-          assigned_to VARCHAR(255),
-          notes TEXT,
+          priority VARCHAR(50) NOT NULL DEFAULT 'medium',
+          estimated_cost INTEGER DEFAULT 0,
+          actual_cost INTEGER DEFAULT 0,
+          reported_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          started_at TIMESTAMPTZ,
+          completed_at TIMESTAMPTZ,
+          assigned_to UUID REFERENCES users(id),
+          reported_by UUID REFERENCES users(id),
           created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
           updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
           deleted_at TIMESTAMPTZ
@@ -286,6 +354,8 @@ export async function autoMigrate() {
       console.error('❌ maintenance 表建立失敗:', err);
       // 不要 throw，繼續建其他表
     }
+
+    await alignLegacyMaintenanceColumns();
 
     console.log('🎉 所有 12 張資料庫表建立完成！');
 

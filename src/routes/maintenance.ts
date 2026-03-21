@@ -59,10 +59,10 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
  description: description || null,
  category, // 'plumbing', 'electrical', 'furniture', 'appliance', 'other'
  status: 'pending',
- priority: priority || 'normal',
- reportedDate: new Date(),
- scheduledDate: scheduledDate ? new Date(scheduledDate) : null,
- costEstimate: costEstimate || null,
+ priority: priority || 'medium',
+ reportedAt: new Date(),
+ startedAt: scheduledDate ? new Date(scheduledDate) : null,
+ estimatedCost: costEstimate ?? null,
  assignedTo: assignedTo || null,
  }).returning();
 
@@ -87,7 +87,7 @@ router.patch('/:id/status', async (req: Request, res: Response, next: NextFuncti
  const updateData: Record<string, unknown> = { status };
 
  if (status === 'completed') {
- updateData.completedDate = completedDate ? new Date(completedDate) : new Date();
+ updateData.completedAt = completedDate ? new Date(completedDate) : new Date();
  if (actualCost !== undefined) {
  updateData.actualCost = actualCost;
  }
