@@ -4,6 +4,7 @@ import { sql, eq, and } from 'drizzle-orm';
 import { db, schema } from '../db/index.js';
 import { hashPassword } from '../utils/password.js';
 import { authenticate, requireSuperAdmin } from '../middleware/auth.js';
+import { authenticate, requireSuperAdmin } from '../middleware/auth.js';
 
 // 統一 API 回應格式
 interface ApiResponse<T = any> {
@@ -83,9 +84,9 @@ router.get('/', authenticate, requireSuperAdmin, async (_req: Request, res: Resp
 
 /**
  * GET /api/users/:id
- * 取得單一使用者詳細資訊
+ * 取得單一使用者詳細資訊（需要登入）
  */
-router.get('/:id', async (req: Request, res: Response) => {
+router.get('/:id', authenticate, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
@@ -193,9 +194,9 @@ router.post('/', authenticate, requireSuperAdmin, async (req: Request, res: Resp
 
 /**
  * PUT /api/users/:id
- * 編輯使用者資訊
+ * 編輯使用者資訊（需要登入）
  */
-router.put('/:id', async (req: Request, res: Response) => {
+router.put('/:id', authenticate, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { email, fullName, phone, role, isActive }: UserUpdateRequest = req.body;
@@ -267,9 +268,9 @@ router.put('/:id', async (req: Request, res: Response) => {
 
 /**
  * DELETE /api/users/:id
- * 軟刪除使用者
+ * 軟刪除使用者（需要登入）
  */
-router.delete('/:id', async (req: Request, res: Response) => {
+router.delete('/:id', authenticate, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
@@ -373,7 +374,7 @@ router.patch('/:id/role', authenticate, requireSuperAdmin, async (req: Request, 
  * 清除所有業務資料（保留使用者帳戶）
  * 僅限 super_admin 使用
  */
-router.post('/clear-all-data', requireSuperAdmin, async (req: Request, res: Response) => {
+router.post('/clear-all-data', authenticate, requireSuperAdmin, async (req: Request, res: Response) => {
   try {
     const { confirm }: { confirm?: string } = req.body;
     
