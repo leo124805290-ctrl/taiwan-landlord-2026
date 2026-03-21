@@ -19,6 +19,7 @@ import reportsRouter from './routes/reports.js';
 import maintenanceRouter from './routes/maintenance.js';
 import usersRouter from './routes/users.js';
 import adminRouter from './routes/admin.js';
+import vercelRouter from './routes/vercel.js';
 import { autoMigrate } from './db/migrate.js';
 import { queryClient } from './db/index.js';
 
@@ -153,6 +154,7 @@ app.use('/api/reports', reportsRouter);
 app.use('/api/maintenance', maintenanceRouter);
 app.use('/api/users', usersRouter);
 app.use('/api/admin', adminRouter);
+app.use('/api/vercel', vercelRouter);
 
 // 暫時保留舊路由（相容性）
 app.get('/api/v1/properties', (_req: Request, res: Response) => {

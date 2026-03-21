@@ -103,3 +103,36 @@ localStorage.setItem(TOKEN_KEY, data.accessToken); // 或 data.token
 ## 6. CORS
 
 後端已對 `FRONTEND_URL` 開 CORS；Vercel 網址變更時請同步 Zeabur 環境變數 `FRONTEND_URL`。
+
+## 7. Vercel 部署清單（不透過前端暴露 Token）
+
+**`VERCEL_TOKEN` 絕不可寫進前端或 commit**；必須只在 **Zeabur／本機後端** 以環境變數注入。
+
+### 後端環境變數（Zeabur）
+
+| 變數 | 說明 |
+|------|------|
+| `VERCEL_TOKEN` | Vercel → Account Settings → **Tokens** 建立（具帳號權限，勿外洩） |
+| `VERCEL_TEAM_ID` | 選填；若 API 回傳與 Team 有關錯誤，在 Team Settings 複製 Team ID |
+
+`.env.example` 已列出上述欄位，僅作佔位；真值只放在託管平台 Secret。
+
+### 後端代理端點（管理系統應呼叫這個，不要從瀏覽器直打 Vercel）
+
+- **GET** `/api/vercel/deployments`  
+  - Headers：`Authorization: Bearer <後端登入 JWT>`（與其他管理 API 相同）  
+  - 角色：`admin` 或 `super_admin`  
+  - 回傳：Vercel `v6/deployments` 的 JSON（由後端用伺服器端 `VERCEL_TOKEN` 轉發）
+
+前端範例：
+
+```typescript
+// 與 apiGet 相同，帶的是「登入後台」的 JWT，不是 VERCEL_TOKEN
+export function listVercelDeploymentsForAdmin() {
+  return apiGet<{ success: boolean; data: unknown }>('/api/vercel/deployments');
+}
+```
+
+這樣管理畫面只帶 **使用者 JWT**，**Vercel Token 永遠只在後端**，符合安全實務。
+
+詳見 **[docs/VERCEL.md](./VERCEL.md)**。

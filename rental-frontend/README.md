@@ -21,4 +21,4 @@ vercel deploy --prod
 
 ## 與後端 monorepo
 
-後端 repo 根目錄提供 `scripts/vercel-frontend-constants.mjs` 與 `npm run vercel:frontend:deployments`，用 **VERCEL_TOKEN** 查詢此專案最近部署（見上層 `docs/VERCEL.md`）。
+後端 repo 提供 `GET /api/vercel/deployments`（管理系統用 JWT）與 `npm run vercel:frontend:deployments`（本機需 **VERCEL_TOKEN**）；見上層 `docs/VERCEL.md`。
