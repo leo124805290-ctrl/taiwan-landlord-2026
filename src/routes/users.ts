@@ -268,9 +268,9 @@ router.put('/:id', authenticate, async (req: Request, res: Response) => {
 
 /**
  * DELETE /api/users/:id
- * 軟刪除使用者（需要登入）
+ * 軟刪除使用者（需登入且為 super_admin；不可刪除自己）
  */
-router.delete('/:id', authenticate, async (req: Request, res: Response) => {
+router.delete('/:id', authenticate, requireSuperAdmin, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
@@ -294,7 +294,7 @@ router.delete('/:id', authenticate, async (req: Request, res: Response) => {
     }
 
     // 防止刪除自己
-    const currentUserId = (req as any).user?.id;
+    const currentUserId = req.user?.id;
     if (currentUserId && currentUserId === id) {
       return res.status(400).json(errorResponse('不能刪除自己的帳號'));
     }
