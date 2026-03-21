@@ -294,6 +294,7 @@ export async function autoMigrate() {
           amount INTEGER NOT NULL,
           expense_date TIMESTAMPTZ NOT NULL,
           description TEXT,
+          receipt_url VARCHAR(500),
           recurring BOOLEAN DEFAULT false,
           recurring_period VARCHAR(50),
           created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -356,6 +357,24 @@ export async function autoMigrate() {
     }
 
     await alignLegacyMaintenanceColumns();
+
+    // 確保 expenses 表有 receipt_url 欄位（修復舊版缺失）
+    try {
+      await queryClient.unsafe(`
+        DO $$
+        BEGIN
+          IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'expenses') THEN
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'expenses' AND column_name = 'receipt_url') THEN
+              ALTER TABLE expenses ADD COLUMN receipt_url VARCHAR(500);
+              RAISE NOTICE '✅ 已為 expenses 表添加 receipt_url 欄位';
+            END IF;
+          END IF;
+        END $$;
+      `);
+      console.log('✅ expenses 表欄位檢查完成');
+    } catch (err) {
+      console.error('❌ expenses 表欄位檢查失敗（不阻斷啟動）:', err);
+    }
 
     console.log('🎉 所有 12 張資料庫表建立完成！');
 

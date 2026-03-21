@@ -11,7 +11,22 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
  try {
  const { propertyId, type, category } = req.query;
 
- const allExpenses = await db.select().from(expenses)
+ // 明確選擇欄位，排除可能不存在的 receipt_url
+ const allExpenses = await db.select({
+   id: expenses.id,
+   propertyId: expenses.propertyId,
+   roomId: expenses.roomId,
+   type: expenses.type,
+   category: expenses.category,
+   amount: expenses.amount,
+   expenseDate: expenses.expenseDate,
+   description: expenses.description,
+   recurring: expenses.recurring,
+   recurringPeriod: expenses.recurringPeriod,
+   createdAt: expenses.createdAt,
+   updatedAt: expenses.updatedAt,
+   deletedAt: expenses.deletedAt,
+ }).from(expenses)
  .where(isNull(expenses.deletedAt))
  .orderBy(desc(expenses.createdAt));
 
@@ -59,7 +74,21 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
  description: description || null,
  recurring: recurring || false,
  recurringPeriod: recurringPeriod || null,
- }).returning();
+ }).returning({
+   id: expenses.id,
+   propertyId: expenses.propertyId,
+   roomId: expenses.roomId,
+   type: expenses.type,
+   category: expenses.category,
+   amount: expenses.amount,
+   expenseDate: expenses.expenseDate,
+   description: expenses.description,
+   recurring: expenses.recurring,
+   recurringPeriod: expenses.recurringPeriod,
+   createdAt: expenses.createdAt,
+   updatedAt: expenses.updatedAt,
+   deletedAt: expenses.deletedAt,
+ });
 
  return res.json({
  success: true,
@@ -81,7 +110,21 @@ router.put('/:id', async (req: Request, res: Response, next: NextFunction) => {
  const [updated] = await db.update(expenses)
  .set(updateData)
  .where(and(eq(expenses.id, id), isNull(expenses.deletedAt)))
- .returning();
+ .returning({
+   id: expenses.id,
+   propertyId: expenses.propertyId,
+   roomId: expenses.roomId,
+   type: expenses.type,
+   category: expenses.category,
+   amount: expenses.amount,
+   expenseDate: expenses.expenseDate,
+   description: expenses.description,
+   recurring: expenses.recurring,
+   recurringPeriod: expenses.recurringPeriod,
+   createdAt: expenses.createdAt,
+   updatedAt: expenses.updatedAt,
+   deletedAt: expenses.deletedAt,
+ });
 
  if (!updated) {
  return res.status(404).json({
@@ -110,7 +153,21 @@ router.delete('/:id', async (req: Request, res: Response, next: NextFunction) =>
  const [deleted] = await db.update(expenses)
  .set({ deletedAt: new Date() })
  .where(and(eq(expenses.id, id), isNull(expenses.deletedAt)))
- .returning();
+ .returning({
+   id: expenses.id,
+   propertyId: expenses.propertyId,
+   roomId: expenses.roomId,
+   type: expenses.type,
+   category: expenses.category,
+   amount: expenses.amount,
+   expenseDate: expenses.expenseDate,
+   description: expenses.description,
+   recurring: expenses.recurring,
+   recurringPeriod: expenses.recurringPeriod,
+   createdAt: expenses.createdAt,
+   updatedAt: expenses.updatedAt,
+   deletedAt: expenses.deletedAt,
+ });
 
  if (!deleted) {
  return res.status(404).json({
