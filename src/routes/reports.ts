@@ -54,7 +54,22 @@ router.get('/monthly', async (req: Request, res: Response, next: NextFunction) =
  const totalExtraIncome = monthIncomes.reduce((sum, i) => sum + i.amount, 0);
 
  // 支出
- const monthExpenses = await db.select().from(expenses)
+ const monthExpenses = await db.select({
+   id: expenses.id,
+   propertyId: expenses.propertyId,
+   roomId: expenses.roomId,
+   type: expenses.type,
+   category: expenses.category,
+   amount: expenses.amount,
+   expenseDate: expenses.expenseDate,
+   description: expenses.description,
+   receiptUrl: expenses.receiptUrl,
+   recurring: expenses.recurring,
+   recurringPeriod: expenses.recurringPeriod,
+   createdAt: expenses.createdAt,
+   updatedAt: expenses.updatedAt,
+   deletedAt: expenses.deletedAt,
+ }).from(expenses)
  .where(and(
  eq(expenses.propertyId, propertyId),
  isNull(expenses.deletedAt),
@@ -139,7 +154,22 @@ router.get('/summary', async (req: Request, res: Response, next: NextFunction) =
  const monthEnd = new Date(monthStart);
  monthEnd.setMonth(monthEnd.getMonth() + 1);
 
- const allExpenses = await db.select().from(expenses)
+ const allExpenses = await db.select({
+   id: expenses.id,
+   propertyId: expenses.propertyId,
+   roomId: expenses.roomId,
+   type: expenses.type,
+   category: expenses.category,
+   amount: expenses.amount,
+   expenseDate: expenses.expenseDate,
+   description: expenses.description,
+   receiptUrl: expenses.receiptUrl,
+   recurring: expenses.recurring,
+   recurringPeriod: expenses.recurringPeriod,
+   createdAt: expenses.createdAt,
+   updatedAt: expenses.updatedAt,
+   deletedAt: expenses.deletedAt,
+ }).from(expenses)
  .where(and(
  isNull(expenses.deletedAt),
  gte(expenses.expenseDate, monthStart),

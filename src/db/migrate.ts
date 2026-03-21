@@ -294,7 +294,7 @@ export async function autoMigrate() {
           amount INTEGER NOT NULL,
           expense_date TIMESTAMPTZ NOT NULL,
           description TEXT,
-          receipt_url TEXT,
+          receipt_url VARCHAR(500),
           recurring BOOLEAN DEFAULT false,
           recurring_period VARCHAR(50),
           created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -358,9 +358,9 @@ export async function autoMigrate() {
 
     await alignLegacyMaintenanceColumns();
 
-    // 補齊可能缺少的欄位
+    // 補齊可能缺少的欄位（舊庫無 receipt_url）
     try {
-      await queryClient`ALTER TABLE expenses ADD COLUMN IF NOT EXISTS receipt_url TEXT`;
+      await queryClient`ALTER TABLE expenses ADD COLUMN IF NOT EXISTS receipt_url VARCHAR(500)`;
       console.log('✅ expenses.receipt_url 欄位已確認');
     } catch (e) {
       console.log('receipt_url 欄位處理:', e);
