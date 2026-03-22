@@ -400,6 +400,61 @@ export async function autoMigrate() {
       console.log('payments_room_month_line_unique:', e);
     }
 
+    /** 舊版將 rooms 的「元」誤寫入 payments／deposits「分」欄位；僅在仍等於房間月租／押金時補乘 100（可重跑） */
+    try {
+      await queryClient.unsafe(`
+        UPDATE payments p
+        SET
+          rent_amount = p.rent_amount * 100,
+          total_amount = p.total_amount * 100,
+          paid_amount = p.paid_amount * 100,
+          balance = GREATEST(0, p.total_amount * 100 - p.paid_amount * 100),
+          payment_status = CASE
+            WHEN p.paid_amount * 100 >= p.total_amount * 100 THEN 'paid'
+            WHEN p.paid_amount * 100 > 0 THEN 'partial'
+            ELSE p.payment_status
+          END
+        FROM rooms r
+        WHERE p.room_id = r.id
+          AND p.line_type = 'rent'
+          AND p.deleted_at IS NULL
+          AND p.total_amount = r.monthly_rent
+          AND p.rent_amount = r.monthly_rent
+      `);
+      await queryClient.unsafe(`
+        UPDATE payments p
+        SET
+          total_amount = p.total_amount * 100,
+          paid_amount = p.paid_amount * 100,
+          balance = GREATEST(0, p.total_amount * 100 - p.paid_amount * 100),
+          payment_status = CASE
+            WHEN p.paid_amount * 100 >= p.total_amount * 100 THEN 'paid'
+            WHEN p.paid_amount * 100 > 0 THEN 'partial'
+            ELSE p.payment_status
+          END
+        FROM rooms r
+        WHERE p.room_id = r.id
+          AND p.line_type = 'deposit'
+          AND p.deleted_at IS NULL
+          AND p.rent_amount = 0
+          AND p.total_amount = r.deposit_amount
+      `);
+      await queryClient.unsafe(`
+        UPDATE deposits d
+        SET amount = d.amount * 100
+        FROM rooms r
+        WHERE d.room_id = r.id
+          AND d.deleted_at IS NULL
+          AND d.type = '收取'
+          AND d.amount = r.deposit_amount
+      `);
+      console.log(
+        '✅ payments／deposits 金額「元→分」補正已執行（僅修正仍等於房間月租／押金的舊列）',
+      );
+    } catch (e) {
+      console.log('payments 元→分補正:', e);
+    }
+
     try {
       await queryClient`ALTER TABLE expenses ADD COLUMN IF NOT EXISTS receipt_url TEXT`;
       console.log('✅ expenses.receipt_url 欄位已新增');

@@ -1,6 +1,7 @@
 import { Router, type Request, type Response } from 'express';
 import { sql } from 'drizzle-orm';
 import { db, schema } from '../db/index.js';
+import { yuanToCents } from '../utils/money.js';
 
 interface ApiResponse<T = any> {
   success: boolean;
@@ -144,7 +145,7 @@ router.post('/complete', async (req: Request, res: Response) => {
           // @ts-ignore
           tenantId: newTenant.id,
           roomId: checkinData.roomId,
-          amount: checkinData.depositAmount,
+          amount: yuanToCents(checkinData.depositAmount),
           type: '收取',
           description: '入住押金',
           depositDate: new Date(),
@@ -152,8 +153,9 @@ router.post('/complete', async (req: Request, res: Response) => {
         });
       }
 
-      /** 入住收款單：押金列 + 首月租金列（待收） */
+      /** 入住收款單：押金列 + 首月租金列（待收）；金額為「分」 */
       if (checkinData.depositAmount > 0) {
+        const depC = yuanToCents(checkinData.depositAmount);
         // @ts-ignore
         await tx.insert(schema.payments).values({
           roomId: checkinData.roomId,
@@ -164,9 +166,9 @@ router.post('/complete', async (req: Request, res: Response) => {
           electricityFee: 0,
           managementFee: 0,
           otherFees: 0,
-          totalAmount: checkinData.depositAmount,
+          totalAmount: depC,
           paidAmount: 0,
-          balance: checkinData.depositAmount,
+          balance: depC,
           paymentStatus: 'pending',
           createdAt: new Date(),
           updatedAt: new Date(),
@@ -174,19 +176,20 @@ router.post('/complete', async (req: Request, res: Response) => {
       }
 
       if (checkinData.rentAmount > 0) {
+        const rentC = yuanToCents(checkinData.rentAmount);
         // @ts-ignore
         await tx.insert(schema.payments).values({
           roomId: checkinData.roomId,
           tenantId: newTenant.id,
           lineType: 'rent',
           paymentMonth,
-          rentAmount: checkinData.rentAmount,
+          rentAmount: rentC,
           electricityFee: 0,
           managementFee: 0,
           otherFees: 0,
-          totalAmount: checkinData.rentAmount,
+          totalAmount: rentC,
           paidAmount: 0,
-          balance: checkinData.rentAmount,
+          balance: rentC,
           paymentStatus: 'pending',
           createdAt: new Date(),
           updatedAt: new Date(),

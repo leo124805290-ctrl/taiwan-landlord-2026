@@ -80,7 +80,7 @@ export const rooms = pgTable('rooms', {
   roomNumber: varchar('room_number', { length: 50 }).notNull(),
   floor: integer('floor').notNull(),
   
-  // 租金資訊
+  // 租金資訊（單位：新台幣元，整數）
   monthlyRent: integer('monthly_rent').notNull().default(0),
   depositAmount: integer('deposit_amount').notNull().default(0),
   electricityRate: integer('electricity_rate').notNull().default(350), // 每度 3.5 元，存整數（分）

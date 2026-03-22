@@ -8,6 +8,7 @@ import {
 import { db } from '../db/index.js';
 import { payments, rooms, meterReadings, tenants, properties } from '../db/schema.js';
 import { eq, and, isNull, desc, inArray } from 'drizzle-orm';
+import { yuanToCents } from '../utils/money.js';
 
 const router = Router();
 
@@ -151,7 +152,8 @@ router.post('/generate', async (req: Request, res: Response, next: NextFunction)
     }
 
     if (lineType === 'rent') {
-      const rentAmount = room[0].monthlyRent;
+      /** rooms.monthly_rent 為「元」，payments 為「分」 */
+      const rentAmount = yuanToCents(room[0].monthlyRent);
       const totalAmount = rentAmount;
       const [newPayment] = await db
         .insert(payments)
@@ -276,7 +278,7 @@ router.post('/generate-monthly', async (req: Request, res: Response, next: NextF
         continue;
       }
 
-      const rentAmount = room.monthlyRent;
+      const rentAmount = yuanToCents(room.monthlyRent);
       const [row] = await db
         .insert(payments)
         .values({
