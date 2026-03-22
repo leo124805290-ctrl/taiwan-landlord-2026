@@ -1,0 +1,5 @@
+# Dependencies
+node_modules/
+
+# 前端獨立於此目錄維護（自有 Git remote），不納入本後端 repo
+deployed-rental-frontend/
