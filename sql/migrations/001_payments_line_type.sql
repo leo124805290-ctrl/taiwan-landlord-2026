@@ -7,6 +7,9 @@ UPDATE payments SET line_type = 'rent' WHERE line_type IS NULL OR line_type = ''
 
 DROP INDEX IF EXISTS payments_room_month_unique;
 
+-- 舊 autoMigrate / 舊表常見名稱（UNIQUE(room_id, payment_month)）
+ALTER TABLE payments DROP CONSTRAINT IF EXISTS payments_room_id_payment_month_key;
+
 CREATE UNIQUE INDEX IF NOT EXISTS payments_room_month_line_unique
   ON payments (room_id, payment_month, line_type);
 

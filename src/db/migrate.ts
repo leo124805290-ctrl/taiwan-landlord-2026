@@ -232,6 +232,7 @@ export async function autoMigrate() {
           id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
           room_id UUID NOT NULL REFERENCES rooms(id),
           tenant_id UUID REFERENCES tenants(id),
+          line_type VARCHAR(50) NOT NULL DEFAULT 'rent',
           payment_month VARCHAR(7) NOT NULL,
           rent_amount INTEGER NOT NULL DEFAULT 0,
           electricity_fee INTEGER NOT NULL DEFAULT 0,
@@ -247,7 +248,7 @@ export async function autoMigrate() {
           created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
           updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
           deleted_at TIMESTAMPTZ,
-          UNIQUE(room_id, payment_month)
+          UNIQUE(room_id, payment_month, line_type)
         )
       `;
       console.log('✅ payments 表建立完成');
@@ -363,6 +364,40 @@ export async function autoMigrate() {
       console.log('✅ payments.line_type 欄位已新增');
     } catch (e) {
       console.log('line_type:', e);
+    }
+
+    /** 舊庫 UNIQUE(room_id, payment_month) 會擋入住同月押金＋租金兩筆，需改為含 line_type */
+    try {
+      await queryClient.unsafe(
+        `UPDATE payments SET line_type = 'rent' WHERE line_type IS NULL`,
+      );
+    } catch (e) {
+      console.log('payments line_type backfill:', e);
+    }
+
+    try {
+      await queryClient.unsafe(
+        `ALTER TABLE payments DROP CONSTRAINT IF EXISTS payments_room_id_payment_month_key`,
+      );
+      console.log('✅ 已移除舊 UNIQUE(room_id, payment_month) 約束');
+    } catch (e) {
+      console.log('drop payments_room_id_payment_month_key:', e);
+    }
+
+    try {
+      await queryClient.unsafe(`DROP INDEX IF EXISTS payments_room_month_unique`);
+    } catch (e) {
+      console.log('drop payments_room_month_unique:', e);
+    }
+
+    try {
+      await queryClient.unsafe(`
+        CREATE UNIQUE INDEX IF NOT EXISTS payments_room_month_line_unique
+        ON payments (room_id, payment_month, line_type);
+      `);
+      console.log('✅ payments (room_id, payment_month, line_type) 唯一索引已就緒');
+    } catch (e) {
+      console.log('payments_room_month_line_unique:', e);
     }
 
     try {
