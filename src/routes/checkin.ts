@@ -37,6 +37,10 @@ interface CheckinRequest {
   phone: string;
   passportNumber?: string;
   notes?: string;
+  /** 入住日（YYYY-MM-DD），未提供則用伺服器當日 */
+  checkInDate?: string;
+  /** 合約到期日（YYYY-MM-DD） */
+  expectedCheckoutDate?: string;
   
   // 付款資訊
   paymentType: 'full' | 'partial' | 'deposit_only'; // 全額、部分付款、僅押金
@@ -133,6 +137,17 @@ router.post('/complete', async (req: Request, res: Response) => {
 
       // 建立租客紀錄
       // @ts-ignore - Drizzle 類型問題，TODO: 需要老闆協助修復
+      const checkIn =
+        checkinData.checkInDate && !Number.isNaN(Date.parse(checkinData.checkInDate))
+          ? new Date(checkinData.checkInDate)
+          : new Date();
+      const expectedCheckout =
+        checkinData.expectedCheckoutDate &&
+        !Number.isNaN(Date.parse(checkinData.expectedCheckoutDate))
+          ? new Date(checkinData.expectedCheckoutDate)
+          : null;
+
+      // @ts-expect-error Drizzle insert 型別與 schema 欄位已對齊，推論偶發過嚴
       const [newTenant] = await tx.insert(schema.tenants).values({
         roomId: checkinData.roomId,
         propertyId: room.propertyId,
@@ -140,7 +155,8 @@ router.post('/complete', async (req: Request, res: Response) => {
         nameVi: checkinData.nameVi,
         phone: checkinData.phone,
         passportNumber: checkinData.passportNumber || null,
-        checkInDate: new Date(),
+        checkInDate: checkIn,
+        expectedCheckoutDate: expectedCheckout,
         status: 'active',
         notes: checkinData.notes || null,
         createdAt: new Date(),
@@ -161,39 +177,7 @@ router.post('/complete', async (req: Request, res: Response) => {
         });
       }
 
-      // 建立付款紀錄（如果租金金額 > 0 且實際付款 > 0）
-      if (checkinData.rentAmount > 0 && checkinData.paidAmount > 0) {
-        // 計算當前月份（YYYY-MM 格式）
-        const currentMonth = new Date().toISOString().slice(0, 7);
-        const rent = checkinData.rentAmount;
-        const elec = 0;
-        const mgmt = 0;
-        const other = 0;
-        const paid = checkinData.paidAmount;
-        const totalAmount = rent + elec + mgmt + other;
-        const balance = totalAmount - paid;
-
-        // @ts-ignore - Drizzle 類型問題，待 schema 對齊後修復
-        await tx.insert(schema.payments) // @ts-ignore - Drizzle 類型問題，待 schema 對齊後修復
-                    .values({
-          roomId: checkinData.roomId,
-          tenantId: newTenant.id,
-          paymentMonth: currentMonth,
-          rentAmount: rent,
-          electricityFee: elec,
-          managementFee: mgmt,
-          otherFees: other,
-          totalAmount,
-          paidAmount: paid,
-          balance,
-          paymentStatus: paid >= totalAmount ? 'paid' : 'partial',
-          paymentDate: new Date(),
-          paymentMethod: checkinData.paymentMethod || 'cash',
-          notes: checkinData.paymentNotes || null,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        });
-      }
+      // 租金帳單改由前端在入住成功後呼叫 POST /api/payments/generate（避免與 generate 重複）
 
       // 返回結果
       return {
