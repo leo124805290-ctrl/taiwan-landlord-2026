@@ -311,6 +311,187 @@ router.post('/generate-monthly', async (req: Request, res: Response, next: NextF
   }
 });
 
+/**
+ * POST /api/payments/electricity-with-reading
+ * 本頁一次完成：記錄抄表 → 依「本次−上一筆」× 每度單價產生該月電費帳單（分）。
+ * 若該房尚無任何抄表，僅寫入基準讀數，不產生帳單（下次再抄即可算費）。
+ */
+router.post('/electricity-with-reading', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { roomId, paymentMonth, readingValue, readingDate, tenantId: tenantIdBody } = req.body;
+
+    if (!roomId || !paymentMonth || readingValue === undefined || readingValue === null || !readingDate) {
+      return res.status(400).json({
+        success: false,
+        message: '缺少欄位：roomId、paymentMonth、readingValue、readingDate',
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    const rv = Number(readingValue);
+    if (Number.isNaN(rv) || rv < 0) {
+      return res.status(400).json({
+        success: false,
+        message: '抄表度數須為非負數',
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    const rd = new Date(readingDate);
+    if (Number.isNaN(rd.getTime())) {
+      return res.status(400).json({
+        success: false,
+        message: '抄表日期無效',
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    const dup = await db
+      .select()
+      .from(payments)
+      .where(
+        and(
+          eq(payments.roomId, roomId),
+          eq(payments.paymentMonth, paymentMonth),
+          eq(payments.lineType, 'electricity'),
+          isNull(payments.deletedAt),
+        ),
+      )
+      .limit(1);
+
+    if (dup.length > 0) {
+      return res.status(409).json({
+        success: false,
+        message: `${paymentMonth} 的電費帳單已存在`,
+        data: dup[0],
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    const roomResult = await db
+      .select()
+      .from(rooms)
+      .where(and(eq(rooms.id, roomId), isNull(rooms.deletedAt)))
+      .limit(1);
+
+    if (roomResult.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: '房間不存在',
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    const room = roomResult[0];
+
+    const lastReading = await db
+      .select()
+      .from(meterReadings)
+      .where(eq(meterReadings.roomId, roomId))
+      .orderBy(desc(meterReadings.readingDate))
+      .limit(1);
+
+    const result = await db.transaction(async (tx) => {
+      if (lastReading.length === 0) {
+        await tx.insert(meterReadings).values({
+          roomId,
+          readingValue: rv,
+          readingDate: rd,
+        });
+        return { mode: 'baseline' as const, usage: 0, electricityFee: 0, payment: null };
+      }
+
+      const previous = lastReading[0].readingValue;
+      if (rv < previous) {
+        throw Object.assign(new Error('本次抄表度數不可小於上一筆'), { statusCode: 400 });
+      }
+
+      await tx.insert(meterReadings).values({
+        roomId,
+        readingValue: rv,
+        readingDate: rd,
+      });
+
+      const recent = await tx
+        .select()
+        .from(meterReadings)
+        .where(eq(meterReadings.roomId, roomId))
+        .orderBy(desc(meterReadings.readingDate))
+        .limit(2);
+
+      if (recent.length < 2) {
+        throw new Error('抄表資料異常');
+      }
+
+      const usage = recent[0].readingValue - recent[1].readingValue;
+      const electricityFee = Math.round(usage * (room.electricityRate / 100) * 100);
+      const totalAmount = electricityFee;
+
+      const tenantRow = await tx
+        .select()
+        .from(tenants)
+        .where(
+          and(eq(tenants.roomId, roomId), eq(tenants.status, 'active'), isNull(tenants.deletedAt)),
+        )
+        .limit(1);
+
+      const resolvedTenantId =
+        (typeof tenantIdBody === 'string' && tenantIdBody) || tenantRow[0]?.id || null;
+
+      const [payment] = await tx
+        .insert(payments)
+        .values({
+          roomId,
+          tenantId: resolvedTenantId,
+          lineType: 'electricity',
+          paymentMonth,
+          rentAmount: 0,
+          electricityFee,
+          managementFee: 0,
+          otherFees: 0,
+          totalAmount,
+          paidAmount: 0,
+          balance: totalAmount,
+          paymentStatus: totalAmount <= 0 ? 'paid' : 'pending',
+        })
+        .returning();
+
+      return {
+        mode: 'billed' as const,
+        usage,
+        electricityFee,
+        payment,
+      };
+    });
+
+    if (result.mode === 'baseline') {
+      return res.json({
+        success: true,
+        data: result,
+        message: '已建立基準抄表；尚無上一筆可比較，無法計算電費。下次抄表後可於此頁產生帳單。',
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    return res.json({
+      success: true,
+      data: result,
+      message: `${paymentMonth} 電費帳單已建立`,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    const statusCode = error && typeof error === 'object' && 'statusCode' in error ? (error as { statusCode: number }).statusCode : undefined;
+    if (statusCode === 400 && error instanceof Error) {
+      return res.status(400).json({
+        success: false,
+        message: error.message,
+        timestamp: new Date().toISOString(),
+      });
+    }
+    next(error);
+  }
+});
+
 // PATCH /api/payments/:id/pay
 router.patch('/:id/pay', async (req: Request, res: Response, next: NextFunction) => {
   try {
