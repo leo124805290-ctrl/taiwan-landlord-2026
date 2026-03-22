@@ -212,6 +212,8 @@ export const payments = pgTable('payments', {
   id: uuid('id').primaryKey().defaultRandom(),
   roomId: uuid('room_id').notNull().references(() => rooms.id, { onDelete: 'restrict' }),
   tenantId: uuid('tenant_id').references(() => tenants.id, { onDelete: 'restrict' }),
+  /** 帳單列類型：deposit=押金, rent=月租, electricity=電費（同房同月可多筆） */
+  lineType: varchar('line_type', { length: 32 }).notNull().default('rent'),
   
   // 帳單期間
   paymentMonth: varchar('payment_month', { length: 7 }).notNull(), // 格式：YYYY-MM
@@ -240,7 +242,12 @@ export const payments = pgTable('payments', {
 }, (table) => ({
   roomIdIdx: index('payments_room_id_idx').on(table.roomId),
   tenantIdIdx: index('payments_tenant_id_idx').on(table.tenantId),
-  paymentMonthIdx: uniqueIndex('payments_room_month_unique').on(table.roomId, table.paymentMonth),
+  paymentMonthIdx: index('payments_payment_month_idx').on(table.paymentMonth),
+  roomMonthLineUnique: uniqueIndex('payments_room_month_line_unique').on(
+    table.roomId,
+    table.paymentMonth,
+    table.lineType,
+  ),
   paymentStatusIdx: index('payments_payment_status_idx').on(table.paymentStatus),
   deletedAtIdx: index('payments_deleted_at_idx').on(table.deletedAt),
 }));
