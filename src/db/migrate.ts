@@ -358,12 +358,18 @@ export async function autoMigrate() {
 
     await alignLegacyMaintenanceColumns();
 
-    // 補齊可能缺少的欄位（舊庫無 receipt_url）
     try {
-      await queryClient`ALTER TABLE expenses ADD COLUMN IF NOT EXISTS receipt_url VARCHAR(500)`;
-      console.log('✅ expenses.receipt_url 欄位已確認');
+      await queryClient`ALTER TABLE payments ADD COLUMN IF NOT EXISTS line_type VARCHAR(50) DEFAULT 'rent'`;
+      console.log('✅ payments.line_type 欄位已新增');
     } catch (e) {
-      console.log('receipt_url 欄位處理:', e);
+      console.log('line_type:', e);
+    }
+
+    try {
+      await queryClient`ALTER TABLE expenses ADD COLUMN IF NOT EXISTS receipt_url TEXT`;
+      console.log('✅ expenses.receipt_url 欄位已新增');
+    } catch (e) {
+      console.log('receipt_url:', e);
     }
 
     console.log('🎉 所有 12 張資料庫表建立完成！');

@@ -213,7 +213,7 @@ export const payments = pgTable('payments', {
   roomId: uuid('room_id').notNull().references(() => rooms.id, { onDelete: 'restrict' }),
   tenantId: uuid('tenant_id').references(() => tenants.id, { onDelete: 'restrict' }),
   /** 帳單列類型：deposit=押金, rent=月租, electricity=電費（同房同月可多筆） */
-  lineType: varchar('line_type', { length: 32 }).notNull().default('rent'),
+  lineType: varchar('line_type', { length: 50 }).notNull().default('rent'),
   
   // 帳單期間
   paymentMonth: varchar('payment_month', { length: 7 }).notNull(), // 格式：YYYY-MM
