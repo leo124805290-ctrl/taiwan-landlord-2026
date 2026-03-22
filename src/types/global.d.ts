@@ -8,6 +8,8 @@ declare namespace NodeJS {
     PORT?: string;
     NODE_ENV?: 'development' | 'production';
     FRONTEND_URL?: string;
+    VERCEL_TOKEN?: string;
+    VERCEL_TEAM_ID?: string;
   }
 }
 
