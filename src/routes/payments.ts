@@ -54,7 +54,7 @@ async function enrichPaymentRows(rows: Record<string, unknown>[]) {
 // GET /api/payments
 router.get('/', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { roomId, tenantId, month, status, propertyId, lineType } = req.query;
+    const { roomId, tenantId, month, status, propertyId, lineType, collection } = req.query;
 
     let allPayments = await db
       .select()
@@ -87,6 +87,15 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
     }
     if (lineType && typeof lineType === 'string') {
       filtered = filtered.filter((p) => p.lineType === lineType);
+    }
+
+    /** 收款狀態：open=尚有欠款（待收／部分），settled=已繳清 */
+    if (collection && typeof collection === 'string') {
+      if (collection === 'open') {
+        filtered = filtered.filter((p) => Number(p.paidAmount) < Number(p.totalAmount));
+      } else if (collection === 'settled') {
+        filtered = filtered.filter((p) => Number(p.paidAmount) >= Number(p.totalAmount));
+      }
     }
 
     const enriched = await enrichPaymentRows(filtered);
