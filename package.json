@@ -13,6 +13,7 @@
     "db:seed": "tsx src/db/seed.ts",
     "db:studio": "drizzle-kit studio",
     "lint": "tsc --noEmit",
+    "audit": "npm audit",
     "vercel:frontend:deployments": "tsx scripts/vercel-list-frontend-deployments.ts"
   },
   "keywords": [

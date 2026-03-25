@@ -26,7 +26,13 @@ async function clearExistingData() {
 async function createSuperAdmin() {
   console.log('👑 建立超級管理員...');
 
-  const password = 'Admin123!';
+  let password = process.env.SEED_ADMIN_PASSWORD?.trim();
+  if (!password) {
+    console.warn(
+      '⚠️  未設定 SEED_ADMIN_PASSWORD，使用開發用預設密碼；請勿於正式或共用環境使用此種子。',
+    );
+    password = 'Admin123!';
+  }
   const passwordHash = await hashPassword(password);
 
   // @ts-ignore - Drizzle 類型問題

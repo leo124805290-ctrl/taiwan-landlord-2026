@@ -1,5 +1,8 @@
 # Dependencies
 node_modules/
 
+# TypeScript 編譯產物（以原始碼為準，勿提交）
+dist/
+
 # 前端獨立於此目錄維護（自有 Git remote），不納入本後端 repo
 deployed-rental-frontend/

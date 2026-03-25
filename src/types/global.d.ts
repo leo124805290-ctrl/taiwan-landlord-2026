@@ -8,7 +8,13 @@ declare namespace NodeJS {
     PORT?: string;
     NODE_ENV?: 'development' | 'production';
     FRONTEND_URL?: string;
+    /** 逗號分隔之多來源 CORS，與 FRONTEND_URL 合併去重 */
+    FRONTEND_ORIGINS_EXTRA?: string;
+    /** db:seed 管理員密碼；未設時種子使用開發預設並警告 */
+    SEED_ADMIN_PASSWORD?: string;
     VERCEL_TOKEN?: string;
+    /** Vercel Deployments API：專案 ID（Dashboard → Project Settings → General） */
+    VERCEL_FRONTEND_PROJECT_ID?: string;
     VERCEL_TEAM_ID?: string;
   }
 }

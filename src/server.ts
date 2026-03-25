@@ -44,6 +44,12 @@ const PORT = process.env.PORT || 3001;
 const NODE_ENV = process.env.NODE_ENV || 'development';
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
 
+const EXTRA_CORS_ORIGINS = (process.env.FRONTEND_ORIGINS_EXTRA || '')
+  .split(',')
+  .map((o) => o.trim())
+  .filter(Boolean);
+const ALLOWED_CORS_ORIGINS = [...new Set([FRONTEND_URL.trim(), ...EXTRA_CORS_ORIGINS])];
+
 // 統一 API 回應格式
 interface ApiResponse<T = any> {
   success: boolean;
@@ -73,12 +79,24 @@ const app = express();
 
 // Middleware 順序：helmet → cors → json → urlencoded → morgan
 app.use(helmet());
-app.use(cors({
-  origin: FRONTEND_URL,
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
-}));
+app.use(
+  cors({
+    origin(origin, callback) {
+      if (!origin) {
+        callback(null, true);
+        return;
+      }
+      if (ALLOWED_CORS_ORIGINS.includes(origin)) {
+        callback(null, origin);
+        return;
+      }
+      callback(null, false);
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+  }),
+);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -194,7 +212,7 @@ autoMigrate().then(() => {
 🚀 台灣房東越南租客管理系統後端 v2.0
 ✅ 環境: ${NODE_ENV}
 📡 埠號: ${PORT}
-🔗 前端 URL: ${FRONTEND_URL}
+🔗 CORS 允許來源: ${ALLOWED_CORS_ORIGINS.join(', ')}
 💾 資料庫: ${process.env.DATABASE_URL?.split('@')[1] || '已連接'}
 ✨ API 端點: http://localhost:${PORT}
    ├── GET  /health

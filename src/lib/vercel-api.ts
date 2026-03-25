@@ -1,9 +1,10 @@
 import { VERCEL_FRONTEND_PROJECT_ID } from '../config/vercel.js';
 
 export const ERR_VERCEL_NO_TOKEN = 'VERCEL_TOKEN_NOT_CONFIGURED';
+export const ERR_VERCEL_NO_PROJECT_ID = 'VERCEL_FRONTEND_PROJECT_ID_NOT_CONFIGURED';
 
 export function isVercelApiConfigured(): boolean {
-  return Boolean(process.env.VERCEL_TOKEN?.trim());
+  return Boolean(process.env.VERCEL_TOKEN?.trim() && VERCEL_FRONTEND_PROJECT_ID);
 }
 
 /**
@@ -14,6 +15,12 @@ export async function listVercelDeployments(): Promise<unknown> {
   const token = process.env.VERCEL_TOKEN?.trim();
   if (!token) {
     const err = new Error(ERR_VERCEL_NO_TOKEN);
+    err.name = 'VercelConfigError';
+    throw err;
+  }
+
+  if (!VERCEL_FRONTEND_PROJECT_ID) {
+    const err = new Error(ERR_VERCEL_NO_PROJECT_ID);
     err.name = 'VercelConfigError';
     throw err;
   }

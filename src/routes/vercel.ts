@@ -3,6 +3,7 @@ import { authenticate, requireAdmin } from '../middleware/auth.js';
 import {
   listVercelDeployments,
   ERR_VERCEL_NO_TOKEN,
+  ERR_VERCEL_NO_PROJECT_ID,
 } from '../lib/vercel-api.js';
 
 interface ApiResponse<T = unknown> {
@@ -48,6 +49,13 @@ router.get(
         return res.status(503).json(
           errorResponse(
             'Vercel 整合未設定：請在 Zeabur／本機環境變數設定 VERCEL_TOKEN',
+          ),
+        );
+      }
+      if (error instanceof Error && error.message === ERR_VERCEL_NO_PROJECT_ID) {
+        return res.status(503).json(
+          errorResponse(
+            'Vercel 整合未設定：請設定環境變數 VERCEL_FRONTEND_PROJECT_ID（專案 Settings → General）',
           ),
         );
       }

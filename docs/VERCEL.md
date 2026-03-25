@@ -1,12 +1,11 @@
 # Vercel（前端 rental-frontend-2026）
 
-## 專案識別（已寫入 repo，非 secret）
+## 專案識別
 
-| 鍵 | 值 |
-|----|-----|
-| Project ID | `prj_gJxuPPShWviozx4o6SPgwlhAChVQ` |
-| 專案名稱 | `rental-frontend-2026` |
-| 儀表板 | [vercel.com → 專案](https://vercel.com/leo124805290s-projects/rental-frontend-2026) |
+| 鍵 | 說明 |
+|----|------|
+| Project ID | 至 [Vercel Dashboard](https://vercel.com/dashboard) → 專案 → **Settings → General** 複製（勿把正式 ID 貼進公開 repo） |
+| 專案名稱 | 例：`rental-frontend-2026`（以你帳號下實際名稱為準） |
 
 程式內常數：`src/config/vercel.ts`  
 共用呼叫邏輯：`src/lib/vercel-api.ts`（僅從 `process.env` 讀取 `VERCEL_TOKEN`，**不** export 明文 token）  
