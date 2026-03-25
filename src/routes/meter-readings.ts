@@ -11,7 +11,7 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
  try {
  const { roomId, readingValue, readingDate } = req.body;
 
- if (!roomId || readingValue === undefined || !readingDate) {
+ if (!roomId || readingValue === undefined || readingValue === null || readingDate === undefined || readingDate === null || readingDate === '') {
  return res.status(400).json({
  success: false,
  message: '缺少必要欄位：roomId, readingValue, readingDate',
