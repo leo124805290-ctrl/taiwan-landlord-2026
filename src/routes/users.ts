@@ -3,8 +3,7 @@ import { Router, type Request, type Response } from 'express';
 import { sql, eq, and } from 'drizzle-orm';
 import { db, schema } from '../db/index.js';
 import { hashPassword } from '../utils/password.js';
-import { authenticate, requireSuperAdmin } from '../middleware/auth.js';
-import { authenticate, requireSuperAdmin } from '../middleware/auth.js';
+import { requireSuperAdmin } from '../middleware/auth.js';
 
 // 統一 API 回應格式
 interface ApiResponse<T = any> {
@@ -58,7 +57,7 @@ const router = Router();
  * 取得使用者列表（只有 super_admin 能用）
  * 排除已軟刪除的使用者
  */
-router.get('/', authenticate, requireSuperAdmin, async (_req: Request, res: Response) => {
+router.get('/', requireSuperAdmin, async (_req: Request, res: Response) => {
   try {
     const users = await db.select({
       id: schema.users.id,
@@ -86,7 +85,7 @@ router.get('/', authenticate, requireSuperAdmin, async (_req: Request, res: Resp
  * GET /api/users/:id
  * 取得單一使用者詳細資訊（需要登入）
  */
-router.get('/:id', authenticate, async (req: Request, res: Response) => {
+router.get('/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
@@ -129,7 +128,7 @@ router.get('/:id', authenticate, async (req: Request, res: Response) => {
  * POST /api/users
  * 建立管理員帳號（只有 super_admin 能用）
  */
-router.post('/', authenticate, requireSuperAdmin, async (req: Request, res: Response) => {
+router.post('/', requireSuperAdmin, async (req: Request, res: Response) => {
   try {
     const { email, password, fullName, phone, role = 'admin' }: UserCreateRequest = req.body;
 
@@ -196,7 +195,7 @@ router.post('/', authenticate, requireSuperAdmin, async (req: Request, res: Resp
  * PUT /api/users/:id
  * 編輯使用者資訊（需要登入）
  */
-router.put('/:id', authenticate, async (req: Request, res: Response) => {
+router.put('/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { email, fullName, phone, role, isActive }: UserUpdateRequest = req.body;
@@ -270,7 +269,7 @@ router.put('/:id', authenticate, async (req: Request, res: Response) => {
  * DELETE /api/users/:id
  * 軟刪除使用者（需登入且為 super_admin；不可刪除自己）
  */
-router.delete('/:id', authenticate, requireSuperAdmin, async (req: Request, res: Response) => {
+router.delete('/:id', requireSuperAdmin, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
@@ -319,7 +318,7 @@ router.delete('/:id', authenticate, requireSuperAdmin, async (req: Request, res:
  * PATCH /api/users/:id/role
  * 修改使用者角色（只有 super_admin 能用）
  */
-router.patch('/:id/role', authenticate, requireSuperAdmin, async (req: Request, res: Response) => {
+router.patch('/:id/role', requireSuperAdmin, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { role }: ChangeRoleRequest = req.body;
@@ -374,7 +373,7 @@ router.patch('/:id/role', authenticate, requireSuperAdmin, async (req: Request, 
  * 清除所有業務資料（保留使用者帳戶）
  * 僅限 super_admin 使用
  */
-router.post('/clear-all-data', authenticate, requireSuperAdmin, async (req: Request, res: Response) => {
+router.post('/clear-all-data', requireSuperAdmin, async (req: Request, res: Response) => {
   try {
     const { confirm }: { confirm?: string } = req.body;
     

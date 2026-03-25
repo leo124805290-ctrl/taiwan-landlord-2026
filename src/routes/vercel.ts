@@ -1,5 +1,5 @@
 import { Router, type Request, type Response } from 'express';
-import { authenticate, requireAdmin } from '../middleware/auth.js';
+import { requireAdmin } from '../middleware/auth.js';
 import {
   listVercelDeployments,
   ERR_VERCEL_NO_TOKEN,
@@ -38,7 +38,6 @@ const router = Router();
  */
 router.get(
   '/deployments',
-  authenticate,
   requireAdmin,
   async (_req: Request, res: Response) => {
     try {

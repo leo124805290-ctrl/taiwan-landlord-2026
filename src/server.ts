@@ -22,6 +22,7 @@ import adminRouter from './routes/admin.js';
 import vercelRouter from './routes/vercel.js';
 import { autoMigrate } from './db/migrate.js';
 import { queryClient } from './db/index.js';
+import { authenticate } from './middleware/auth.js';
 
 // 載入環境變數
 dotenv.config();
@@ -116,44 +117,77 @@ app.get('/health', (_req: Request, res: Response) => {
   }));
 });
 
-// 資料庫除錯端點
-app.get('/api/debug/db-status', async (_req: Request, res: Response) => {
-  try {
-    const tables = await queryClient`
-      SELECT table_name 
-      FROM information_schema.tables 
-      WHERE table_schema = 'public'
-      ORDER BY table_name
-    `;
-    
-    const counts: Record<string, number> = {};
-    for (const t of tables) {
-      try {
-        const result = await queryClient`
-          SELECT COUNT(*) as count FROM ${queryClient(t.table_name)}
-        `;
-        counts[t.table_name] = Number(result[0].count);
-      } catch {
-        counts[t.table_name] = -1; // 查詢失敗
-      }
-    }
+// 資料庫除錯端點（僅開發環境，正式環境不暴露）
+if (NODE_ENV === 'development') {
+  app.get('/api/debug/db-status', async (_req: Request, res: Response) => {
+    try {
+      const tables = await queryClient`
+        SELECT table_name 
+        FROM information_schema.tables 
+        WHERE table_schema = 'public'
+        ORDER BY table_name
+      `;
 
-    res.json({
-      success: true,
-      data: {
-        tables: tables.map(t => t.table_name),
-        tableCount: tables.length,
-        rowCounts: counts,
-      },
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error instanceof Error ? error.message : '未知錯誤',
-      timestamp: new Date().toISOString()
-    });
+      const counts: Record<string, number> = {};
+      for (const t of tables) {
+        try {
+          const result = await queryClient`
+            SELECT COUNT(*) as count FROM ${queryClient(t.table_name)}
+          `;
+          counts[t.table_name] = Number(result[0].count);
+        } catch {
+          counts[t.table_name] = -1;
+        }
+      }
+
+      res.json({
+        success: true,
+        data: {
+          tables: tables.map((t) => t.table_name),
+          tableCount: tables.length,
+          rowCounts: counts,
+        },
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: error instanceof Error ? error.message : '未知錯誤',
+        timestamp: new Date().toISOString(),
+      });
+    }
+  });
+}
+
+/**
+ * 除 /api/auth/login、refresh、logout 外，所有 /api/* 需 Bearer JWT
+ */
+app.use((req: Request, res: Response, next: NextFunction) => {
+  if (!req.path.startsWith('/api')) {
+    next();
+    return;
   }
+  if (req.path === '/api/auth/login' && req.method === 'POST') {
+    next();
+    return;
+  }
+  if (req.path === '/api/auth/refresh' && req.method === 'POST') {
+    next();
+    return;
+  }
+  if (req.path === '/api/auth/logout' && req.method === 'POST') {
+    next();
+    return;
+  }
+  if (
+    NODE_ENV === 'development' &&
+    req.path === '/api/debug/db-status' &&
+    req.method === 'GET'
+  ) {
+    next();
+    return;
+  }
+  void authenticate(req, res, next);
 });
 
 // API 路由
@@ -198,9 +232,14 @@ app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
     return res.status(400).json(errorResponse('請求格式錯誤'));
   }
 
-  // 預設錯誤
-  const statusCode = 'statusCode' in err ? (err as any).statusCode : 500;
-  const message = NODE_ENV === 'production' ? '伺服器內部錯誤' : err.message;
+  const statusCode =
+    'statusCode' in err && typeof (err as { statusCode?: number }).statusCode === 'number'
+      ? (err as { statusCode: number }).statusCode
+      : 500;
+  const message =
+    statusCode >= 500 && NODE_ENV === 'production'
+      ? '伺服器內部錯誤'
+      : err.message;
 
   return res.status(statusCode || 500).json(errorResponse(message));
 });

@@ -11,7 +11,13 @@
 | **環境變數** | 後端基底網址用 `NEXT_PUBLIC_API_URL`（或既有變數），勿在程式裡寫死。 |
 | **需要登入的頁面** | 使用者列表、清除資料、建立帳號等，一律用**已認證**的 client，不要用「公開 API」那套。 |
 
-## 2. 後端端點（已部署即可用）
+## 2. 登入（取得 JWT）
+
+- **POST** `/api/auth/login`  
+  - Body: `{ "email": "admin@rental.com", "password": "<種子或正式密碼>" }`  
+  - 成功：`data.user`、`data.tokens.accessToken`（前端需寫入 localStorage／cookie 並於後續請求帶 `Authorization`）。
+
+## 3. 後端端點（已部署即可用）
 
 - **POST** `/api/admin/clear-all-data`  
   - Headers: `Authorization: Bearer <access_token>`  
@@ -21,7 +27,7 @@
 - **GET** `/api/users`（僅 `super_admin`）  
   - 同樣必須帶 `Authorization: Bearer <token>`
 
-## 3. 前端範例（請複製到專案並依命名微調）
+## 4. 前端範例（請複製到專案並依命名微調）
 
 檔名建議：`lib/api.ts` 或 `lib/api-client.ts`。
 
@@ -84,7 +90,7 @@ export function clearAllBusinessData() {
 
 **清除按鈕**請只呼叫 `clearAllBusinessData()`，不要另寫一支沒帶 `authHeaders` 的 `fetch`。
 
-## 4. 登入成功時必做
+## 5. 登入成功時必做
 
 在登入成功 callback 裡（依你們 API 回傳欄位調整）：
 
@@ -94,17 +100,17 @@ localStorage.setItem(TOKEN_KEY, data.accessToken); // 或 data.token
 
 若 token 放在 **httpOnly Cookie** 且前端讀不到，則需用 **Next.js Route Handler** 在伺服器端讀 cookie 並代為向後端轉發 `Authorization`，不能只用瀏覽器裸 `fetch` 而不帶 Bearer。
 
-## 5. 驗收清單（每次改 UI 都過一次）
+## 6. 驗收清單（每次改 UI 都過一次）
 
 1. DevTools → Network → 點「清除」或「使用者列表」請求。  
 2. Request Headers 必須有：`Authorization: Bearer eyJ...`  
 3. 無則先修 API client，不要改後端繞過驗證。
 
-## 6. CORS
+## 7. CORS
 
 後端已對 `FRONTEND_URL` 開 CORS；Vercel 網址變更時請同步 Zeabur 環境變數 `FRONTEND_URL`。
 
-## 7. Vercel 部署清單（不透過前端暴露 Token）
+## 8. Vercel 部署清單（不透過前端暴露 Token）
 
 **`VERCEL_TOKEN` 絕不可寫進前端或 commit**；必須只在 **Zeabur／本機後端** 以環境變數注入。
 

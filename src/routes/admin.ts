@@ -1,6 +1,6 @@
 import { Router, type Request, type Response } from 'express';
 import { queryClient } from '../db/index.js';
-import { authenticate, requireRole } from '../middleware/auth.js';
+import { requireRole } from '../middleware/auth.js';
 
 // 統一 API 回應格式
 interface ApiResponse<T = any> {
@@ -39,8 +39,6 @@ const router = Router();
  */
 router.post(
   '/clear-all-data',
-  authenticate,
-  // 目前系統的簡易登入回傳角色多半是 `admin`，因此清空功能至少需允許 admin
   requireRole(['super_admin', 'admin']),
   async (req: Request, res: Response) => {
     const { confirm } = (req.body ?? {}) as { confirm?: string };

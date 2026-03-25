@@ -16,8 +16,15 @@ TypeScript + Express + Drizzle + PostgreSQL。
 ```bash
 npm install
 cp .env.example .env   # 若有的話；否則自行設定 DATABASE_URL、JWT_SECRET、PORT
+npm run db:seed          # 建立 admin@rental.com 等初始資料（密碼見終端機或 SEED_ADMIN_PASSWORD）
 npm run dev
 ```
+
+## 登入與 API 保護
+
+- **POST** `/api/auth/login`：body 為 `{ "email": "admin@rental.com", "password": "…" }`，成功回傳 `data.tokens.accessToken`。
+- 除 **`/api/auth/login`**、**`/api/auth/refresh`**、**`/api/auth/logout`** 外，其餘 **`/api/*` 皆須**標頭 `Authorization: Bearer <accessToken>`。
+- **`GET /api/debug/db-status`** 僅在 **`NODE_ENV=development`** 註冊，且開發時可不帶 token（僅供本機除錯）；正式環境不暴露此路由。
 
 ## 環境變數補充
 

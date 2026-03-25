@@ -62,8 +62,7 @@ export function generateTokenPair(user: {
   const accessToken = generateAccessToken(user);
   const refreshToken = generateRefreshToken(user);
 
-  // 計算過期時間（秒）
-  const expiresIn = parseJwtExpiresIn(JWT_EXPIRES_IN);
+  const expiresIn = parseJwtExpiresInSeconds(JWT_EXPIRES_IN);
 
   return {
     accessToken,
@@ -124,8 +123,8 @@ export function decodeToken(token: string): TokenPayload | null {
   }
 }
 
-// 解析 JWT expiresIn 字串為秒數
-function parseJwtExpiresIn(expiresIn: string): number {
+/** 解析 JWT expiresIn 字串（如 7d、12h）為秒數 */
+export function parseJwtExpiresInSeconds(expiresIn: string): number {
   const match = expiresIn.match(/^(\d+)([smhd])$/);
   if (!match) {
     return 7 * 24 * 60 * 60; // 預設 7 天（秒）
@@ -149,7 +148,10 @@ function parseJwtExpiresIn(expiresIn: string): number {
 }
 
 // 檢查 token 是否即將過期（剩餘時間小於閾值）
-export function isTokenExpiringSoon(token: string, thresholdSeconds: number = 3600): boolean {
+export function isTokenExpiringSoon(
+  token: string,
+  thresholdSeconds: number = 3600,
+): boolean {
   try {
     const decoded = jwt.decode(token) as { exp?: number };
     if (!decoded || !decoded.exp) {
