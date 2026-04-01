@@ -87,8 +87,10 @@ router.post('/login', async (req: Request, res: Response) => {
       return res.status(401).json(errorResponse('帳號或密碼錯誤'));
     }
 
+    const userId =
+      typeof userData.id === 'string' ? userData.id : String(userData.id);
     const { accessToken, refreshToken, expiresIn } = generateTokenPair({
-      id: userData.id,
+      id: userId,
       username: userData.username,
       email: userData.email ?? undefined,
       role: userData.role || 'admin',
@@ -96,11 +98,11 @@ router.post('/login', async (req: Request, res: Response) => {
     });
 
     await queryClient`
-      UPDATE users SET last_login_at = ${new Date()} WHERE id = ${userData.id}
+      UPDATE users SET last_login_at = ${new Date()} WHERE id = ${userId}
     `;
 
     const user: UserInfo = {
-      id: userData.id,
+      id: userId,
       username: userData.username,
       email: userData.email ?? undefined,
       fullName: userData.fullName ?? undefined,
