@@ -34,6 +34,20 @@ export function setAccessToken(token: string | null): void {
   else localStorage.removeItem(TOKEN_KEY);
 }
 
+/**
+ * JWT 失效（過期、簽章不符、換過 JWT_SECRET 等）時：清 token 並導向登入頁，
+ * 避免各頁 apiGet 同時拋出「無效的 token」且未處理。
+ */
+function clearSessionAndGoLogin(requestPath: string): void {
+  if (typeof window === 'undefined') return;
+  if (requestPath.includes('/api/auth/login')) return;
+  setAccessToken(null);
+  const path = window.location.pathname || '';
+  if (path !== '/login' && path !== '/') {
+    window.location.replace('/login');
+  }
+}
+
 function authHeaders(): HeadersInit {
   const token = getAccessToken();
   const headers: Record<string, string> = {
@@ -50,7 +64,7 @@ type ApiEnvelope<T> = {
   timestamp?: string;
 };
 
-async function parseEnvelope<T>(res: Response): Promise<T> {
+async function parseEnvelope<T>(res: Response, requestPath: string): Promise<T> {
   const raw = await res.text();
   let json: Partial<ApiEnvelope<T>> = {};
   try {
@@ -59,7 +73,11 @@ async function parseEnvelope<T>(res: Response): Promise<T> {
     throw new ApiError(raw || res.statusText || '無效回應', res.status);
   }
   if (!res.ok || json.success === false) {
-    throw new ApiError(json.message ?? res.statusText, res.status);
+    const msg = json.message ?? res.statusText;
+    if (res.status === 401 && !requestPath.includes('/api/auth/login')) {
+      clearSessionAndGoLogin(requestPath);
+    }
+    throw new ApiError(msg, res.status);
   }
   if (json.success !== true) {
     throw new ApiError(json.message ?? '無效回應', res.status);
@@ -72,7 +90,7 @@ export async function apiGet<T>(path: string): Promise<T> {
     headers: authHeaders(),
     credentials: 'omit',
   });
-  return parseEnvelope<T>(res);
+  return parseEnvelope<T>(res, path);
 }
 
 export async function apiPost<T>(path: string, body: unknown): Promise<T> {
@@ -82,7 +100,7 @@ export async function apiPost<T>(path: string, body: unknown): Promise<T> {
     body: JSON.stringify(body),
     credentials: 'omit',
   });
-  return parseEnvelope<T>(res);
+  return parseEnvelope<T>(res, path);
 }
 
 export async function apiDelete<T>(path: string): Promise<T> {
@@ -91,7 +109,7 @@ export async function apiDelete<T>(path: string): Promise<T> {
     headers: authHeaders(),
     credentials: 'omit',
   });
-  return parseEnvelope<T>(res);
+  return parseEnvelope<T>(res, path);
 }
 
 export async function apiPut<T>(path: string, body: unknown): Promise<T> {
@@ -101,7 +119,7 @@ export async function apiPut<T>(path: string, body: unknown): Promise<T> {
     body: JSON.stringify(body),
     credentials: 'omit',
   });
-  return parseEnvelope<T>(res);
+  return parseEnvelope<T>(res, path);
 }
 
 /** 清除所有業務資料（需 admin / super_admin JWT） */

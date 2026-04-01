@@ -25,6 +25,7 @@ npm run dev
 
 - **POST** `/api/auth/login`：body 為 `{ "username": "admin", "password": "…" }`（**登入帳號**，非 Email）。成功回傳 `data.tokens.accessToken`。
 - 除 **`/api/auth/login`**、**`/api/auth/refresh`**、**`/api/auth/logout`** 外，其餘 **`/api/*` 皆須**標頭 `Authorization: Bearer <accessToken>`。
+- 瀏覽器若出現 **「無效的 token」**：代表舊 JWT 已無法驗證（常見：token 過期、**部署時更換了 `JWT_SECRET`**、或曾用別環境登入）。請**重新登入**；前端會在 401 時清除 token 並導向 `/login`。
 - **`GET /api/debug/db-status`** 僅在 **`NODE_ENV=development`** 註冊，且開發時可不帶 token（僅供本機除錯）；正式環境不暴露此路由。
 
 ## 環境變數補充
