@@ -5,7 +5,7 @@ import { relations } from 'drizzle-orm';
 export const users = pgTable('users', {
   id: uuid('id').primaryKey().defaultRandom(),
   /** 登入用帳號（非 Email，全小寫儲存） */
-  username: varchar('username', { length: 64 }).notNull().unique(),
+  username: varchar('username', { length: 100 }).notNull().unique(),
   /** 聯絡用，選填 */
   email: varchar('email', { length: 255 }).unique(),
   passwordHash: varchar('password_hash', { length: 255 }).notNull(),

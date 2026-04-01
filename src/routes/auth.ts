@@ -110,6 +110,8 @@ router.post('/login', async (req: Request, res: Response) => {
     return res.status(200).json(
       successResponse({
         user,
+        /** 主要給前端用的 Access JWT（與 Authorization Bearer 一致） */
+        token: accessToken,
         tokens: {
           accessToken,
           refreshToken,

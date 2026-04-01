@@ -8,8 +8,8 @@ export function normalizeUsername(raw: string): string {
 /** 通過驗證回 null，否則回錯誤訊息 */
 export function validateUsername(raw: string): string | null {
   const s = raw.trim();
-  if (s.length < 3 || s.length > 64) {
-    return '帳號長度須為 3～64 字元';
+  if (s.length < 3 || s.length > 100) {
+    return '帳號長度須為 3～100 字元';
   }
   if (s.includes('@')) {
     return '請使用自訂帳號，不要使用 Email（勿含 @）';

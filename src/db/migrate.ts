@@ -1,4 +1,6 @@
-import { queryClient } from './index.js';
+import { queryClient, db, schema } from './index.js';
+import { eq, and, isNull } from 'drizzle-orm';
+import { hashPassword } from '../utils/password.js';
 
 /**
  * 舊版 autoMigrate 建立的 maintenance 欄位名與 Drizzle schema 不一致。
@@ -73,6 +75,9 @@ async function alignUsersUsernameColumns(): Promise<void> {
   console.log('🔧 檢查 users.username（登入帳號）與 email 可為空…');
   try {
     await queryClient.unsafe(`
+ALTER TABLE users ADD COLUMN IF NOT EXISTS username VARCHAR(100);
+`);
+    await queryClient.unsafe(`
 DO $$
 BEGIN
   IF to_regclass('public.users') IS NULL THEN
@@ -83,7 +88,7 @@ BEGIN
     SELECT 1 FROM information_schema.columns
     WHERE table_schema = 'public' AND table_name = 'users' AND column_name = 'username'
   ) THEN
-    ALTER TABLE users ADD COLUMN username VARCHAR(64);
+    ALTER TABLE users ADD COLUMN username VARCHAR(100);
   END IF;
 
   IF EXISTS (
@@ -130,6 +135,40 @@ CREATE UNIQUE INDEX IF NOT EXISTS users_username_unique ON users (username);
     console.log('✅ users.username／email 對齊完成');
   } catch (err) {
     console.error('❌ users.username 對齊失敗（不阻斷啟動）:', err);
+  }
+}
+
+/** 若尚無 username=admin，建立預設超級管理員（密碼 bcrypt 雜湊） */
+async function ensureDefaultAdminUser(): Promise<void> {
+  console.log('🔧 檢查預設管理員（username=admin）…');
+  try {
+    if (!process.env.DATABASE_URL) return;
+
+    const existing = await db
+      .select({ id: schema.users.id })
+      .from(schema.users)
+      .where(and(eq(schema.users.username, 'admin'), isNull(schema.users.deletedAt)))
+      .limit(1);
+
+    if (existing.length > 0) {
+      console.log('✅ 已存在 username=admin，略過建立');
+      return;
+    }
+
+    const passwordHash = await hashPassword('82913187');
+    // @ts-ignore Drizzle insert 型別
+    await db.insert(schema.users).values({
+      username: 'admin',
+      email: null,
+      passwordHash,
+      fullName: '超級管理員',
+      role: 'super_admin',
+      isActive: true,
+    });
+
+    console.log('✅ 已建立預設管理員：username=admin（請於正式環境變更密碼）');
+  } catch (err) {
+    console.error('❌ 預設管理員建立失敗（不阻斷啟動）:', err);
   }
 }
 
@@ -528,6 +567,8 @@ export async function autoMigrate() {
     } catch (e) {
       console.log('receipt_url:', e);
     }
+
+    await ensureDefaultAdminUser();
 
     console.log('🎉 所有 12 張資料庫表建立完成！');
 
