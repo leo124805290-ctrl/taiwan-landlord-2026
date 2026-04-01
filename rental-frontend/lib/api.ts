@@ -137,6 +137,8 @@ export type LoginResult = {
     fullName?: string;
     role: string;
   };
+  /** Access JWT（與 Bearer 一致） */
+  token: string;
   tokens: { accessToken: string; refreshToken: string; expiresIn: number };
 };
 
@@ -145,8 +147,12 @@ export async function loginWithCredentials(
   username: string,
   password: string,
 ): Promise<LoginResult> {
-  return apiPost<LoginResult>('/api/auth/login', {
+  const data = await apiPost<LoginResult>('/api/auth/login', {
     username: username.trim(),
     password,
   });
+  if (!data.token && data.tokens?.accessToken) {
+    return { ...data, token: data.tokens.accessToken };
+  }
+  return data;
 }
