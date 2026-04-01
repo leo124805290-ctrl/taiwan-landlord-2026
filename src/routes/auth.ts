@@ -1,5 +1,5 @@
 import { Router, type Request, type Response } from 'express';
-import { eq, and, isNull, sql } from 'drizzle-orm';
+import { eq, and, isNull } from 'drizzle-orm';
 import {
   generateAccessToken,
   generateTokenPair,
@@ -9,7 +9,7 @@ import {
 } from '../utils/jwt.js';
 import type { TokenPayload } from '../utils/jwt.js';
 import { comparePassword } from '../utils/password.js';
-import { db, schema } from '../db/index.js';
+import { db, queryClient, schema } from '../db/index.js';
 import { normalizeUsername } from '../utils/username.js';
 
 interface ApiResponse<T = any> {
@@ -95,9 +95,9 @@ router.post('/login', async (req: Request, res: Response) => {
       fullName: userData.fullName ?? undefined,
     });
 
-    await db.execute(
-      sql`UPDATE users SET last_login_at = ${new Date()} WHERE id = ${userData.id}`,
-    );
+    await queryClient`
+      UPDATE users SET last_login_at = ${new Date()} WHERE id = ${userData.id}
+    `;
 
     const user: UserInfo = {
       id: userData.id,
