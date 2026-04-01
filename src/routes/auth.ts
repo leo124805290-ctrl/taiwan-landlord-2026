@@ -9,7 +9,8 @@ import {
 } from '../utils/jwt.js';
 import type { TokenPayload } from '../utils/jwt.js';
 import { comparePassword } from '../utils/password.js';
-import { db, queryClient, schema } from '../db/index.js';
+import { db } from '../db/index.js';
+import { users } from '../db/schema.js';
 import { normalizeUsername } from '../utils/username.js';
 
 interface ApiResponse<T = any> {
@@ -59,9 +60,20 @@ function payloadUsername(p: TokenPayload & { email?: string }): string {
  */
 router.post('/login', async (req: Request, res: Response) => {
   try {
-    const { username, password } = req.body as { username?: string; password?: string };
+    const rawUsername = req.body?.username;
+    const rawPassword = req.body?.password;
+    if (
+      rawUsername == null ||
+      rawPassword == null ||
+      typeof rawUsername !== 'string' ||
+      typeof rawPassword !== 'string'
+    ) {
+      return res.status(400).json(errorResponse('請提供帳號與密碼'));
+    }
 
-    if (!username || typeof username !== 'string' || !password || typeof password !== 'string') {
+    const username = String(rawUsername).trim();
+    const password = String(rawPassword);
+    if (!username || !password) {
       return res.status(400).json(errorResponse('請提供帳號與密碼'));
     }
 
@@ -69,8 +81,8 @@ router.post('/login', async (req: Request, res: Response) => {
 
     const rows = await db
       .select()
-      .from(schema.users)
-      .where(and(eq(schema.users.username, normalizedUser), isNull(schema.users.deletedAt)))
+      .from(users)
+      .where(and(eq(users.username, String(normalizedUser)), isNull(users.deletedAt)))
       .limit(1);
 
     if (rows.length === 0) {
@@ -97,9 +109,14 @@ router.post('/login', async (req: Request, res: Response) => {
       fullName: userData.fullName ?? undefined,
     });
 
-    await queryClient`
-      UPDATE users SET last_login_at = ${new Date()} WHERE id = ${userId}
-    `;
+    // Drizzle 0.37 的 update().set 型別僅含 $inferInsert 欄位（users 僅 username/passwordHash），其餘欄位需斷言
+    await db
+      .update(users)
+      .set({
+        lastLoginAt: new Date(),
+        updatedAt: new Date(),
+      } as Record<string, unknown>)
+      .where(eq(users.id, userId));
 
     const user: UserInfo = {
       id: userId,
