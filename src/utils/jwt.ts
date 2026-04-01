@@ -13,10 +13,11 @@ const JWT_SECRET = process.env.JWT_SECRET;
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
 const JWT_REFRESH_EXPIRES_IN = process.env.JWT_REFRESH_EXPIRES_IN || '30d';
 
-// Token 類型
+// Token 類型（舊版 token 可能僅有 email，解析處需相容）
 export interface TokenPayload {
   id: string;
-  email: string;
+  username: string;
+  email?: string;
   role: string;
   fullName?: string;
   type: 'access' | 'refresh';
@@ -55,12 +56,20 @@ export function generateRefreshToken(payload: Omit<TokenPayload, 'type'>): strin
 // 生成 Token 對（Access + Refresh）
 export function generateTokenPair(user: {
   id: string;
-  email: string;
+  username: string;
+  email?: string | null;
   role: string;
   fullName?: string;
 }): TokenPair {
-  const accessToken = generateAccessToken(user);
-  const refreshToken = generateRefreshToken(user);
+  const payload = {
+    id: user.id,
+    username: user.username,
+    email: user.email ?? undefined,
+    role: user.role,
+    fullName: user.fullName,
+  };
+  const accessToken = generateAccessToken(payload);
+  const refreshToken = generateRefreshToken(payload);
 
   const expiresIn = parseJwtExpiresInSeconds(JWT_EXPIRES_IN);
 

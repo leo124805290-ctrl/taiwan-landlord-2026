@@ -11,6 +11,7 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:seed": "tsx src/db/seed.ts",
+    "db:ensure-admin": "tsx src/db/ensure-super-admin.ts",
     "db:studio": "drizzle-kit studio",
     "lint": "tsc --noEmit",
     "audit": "npm audit",

@@ -10,7 +10,9 @@ declare namespace NodeJS {
     FRONTEND_URL?: string;
     /** 逗號分隔之多來源 CORS，與 FRONTEND_URL 合併去重 */
     FRONTEND_ORIGINS_EXTRA?: string;
-    /** db:seed 管理員密碼；未設時種子使用開發預設並警告 */
+    /** db:seed / db:ensure-admin 超級管理員登入帳號（預設 admin） */
+    SEED_ADMIN_USERNAME?: string;
+    /** db:seed / db:ensure-admin 管理員密碼 */
     SEED_ADMIN_PASSWORD?: string;
     VERCEL_TOKEN?: string;
     /** Vercel Deployments API：專案 ID（Dashboard → Project Settings → General） */

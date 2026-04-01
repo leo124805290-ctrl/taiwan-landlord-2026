@@ -13,10 +13,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <nav>
           <Link href="/">首頁</Link>
+          <Link href="/admin">管理後台</Link>
           <Link href="/dashboard">儀表板</Link>
           <Link href="/meter-readings">抄電表</Link>
           <Link href="/expenses">支出管理</Link>
-          <Link href="/users">使用者管理</Link>
+          <Link href="/users">後台帳號</Link>
           <Link href="/login">登入</Link>
         </nav>
         <main>{children}</main>

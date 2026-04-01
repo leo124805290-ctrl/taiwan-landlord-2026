@@ -1,5 +1,6 @@
 import { db, schema } from './index.js';
 import { hashPassword } from '../utils/password.js';
+import { normalizeUsername } from '../utils/username.js';
 
 // 清除現有資料（軟刪除標記）
 async function clearExistingData() {
@@ -22,22 +23,27 @@ async function clearExistingData() {
   console.log('✅ 資料清除完成');
 }
 
-// 建立超級管理員
+// 建立超級管理員（預設帳號 admin，非 Email）
 async function createSuperAdmin() {
   console.log('👑 建立超級管理員...');
+
+  const adminUsername = normalizeUsername(
+    process.env.SEED_ADMIN_USERNAME?.trim() || 'admin',
+  );
 
   let password = process.env.SEED_ADMIN_PASSWORD?.trim();
   if (!password) {
     console.warn(
-      '⚠️  未設定 SEED_ADMIN_PASSWORD，使用開發用預設密碼；請勿於正式或共用環境使用此種子。',
+      '⚠️  未設定 SEED_ADMIN_PASSWORD，使用專案約定預設密碼；正式或共用環境請務必改為 SEED_ADMIN_PASSWORD 強密碼並旋轉。',
     );
-    password = 'Admin123!';
+    password = '82913187';
   }
   const passwordHash = await hashPassword(password);
 
   // @ts-ignore - Drizzle 類型問題
   const [admin] = await db.insert(schema.users).values({
-    email: 'admin@rental.com',
+    username: adminUsername,
+    email: null,
     passwordHash,
     fullName: '系統管理員',
     phone: '0912345678',
@@ -45,7 +51,7 @@ async function createSuperAdmin() {
     isActive: true,
   }).returning();
 
-  console.log(`   - 帳號: ${admin.email}`);
+  console.log(`   - 登入帳號: ${admin.username}`);
   console.log(`   - 密碼: ${password}`);
   console.log(`   - 角色: ${admin.role}`);
 
@@ -241,14 +247,14 @@ async function main() {
    • 房間數量: ${counts.roomCount} 間
    • 管理員關聯: ${counts.managerCount} 個
 
-🔑 登入資訊：
-   網址: http://localhost:3000
-   帳號: admin@rental.com
-   密碼: Admin123!
+🔑 登入資訊（亦見 README）：
+   前端: http://localhost:3000/login
+   帳號: admin（或 SEED_ADMIN_USERNAME）
+   密碼: 見種子輸出（未設 SEED_ADMIN_PASSWORD 時預設 82913187）
 
 ⚠️  注意事項：
-   1. 此為測試資料，請勿在生產環境使用相同密碼
-   2. 首次使用請立即修改密碼
+   1. 種子會清空並重建測試資料；既有庫請改用 npm run db:ensure-admin
+   2. 正式環境請設定 SEED_ADMIN_PASSWORD，並於首次登入後變更密碼
    3. 可以建立更多測試資料以驗證功能
 
 ========================================

@@ -18,7 +18,8 @@ declare global {
     interface Request {
       user?: {
         id: string;
-        email: string;
+        username: string;
+        email?: string;
         role: string;
         fullName?: string;
       };
@@ -62,10 +63,11 @@ export const authenticate = async (
       throw new AuthenticationError('缺少 token');
     }
 
-    // 驗證 token
+    // 驗證 token（相容僅含 email 的舊 JWT）
     const decoded = jwt.verify(token, JWT_SECRET) as {
       id: string;
-      email: string;
+      username?: string;
+      email?: string;
       role: string;
       fullName?: string;
       type: 'access';
@@ -76,9 +78,15 @@ export const authenticate = async (
       throw new AuthenticationError('無效的 token 類型');
     }
 
+    const username =
+      decoded.username ||
+      (decoded.email?.includes('@') ? decoded.email.split('@')[0] : decoded.email) ||
+      '';
+
     // 將使用者資訊附加到 request
     req.user = {
       id: decoded.id,
+      username,
       email: decoded.email,
       role: decoded.role,
       fullName: decoded.fullName,

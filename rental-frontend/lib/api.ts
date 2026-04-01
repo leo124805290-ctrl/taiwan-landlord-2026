@@ -112,10 +112,23 @@ export function clearAllBusinessData() {
 }
 
 export type LoginResult = {
-  user: { id: string; email: string; fullName?: string; role: string };
+  user: {
+    id: string;
+    username: string;
+    email?: string;
+    fullName?: string;
+    role: string;
+  };
   tokens: { accessToken: string; refreshToken: string; expiresIn: number };
 };
 
-export async function loginWithPassword(password: string): Promise<LoginResult> {
-  return apiPost<LoginResult>('/api/auth/login', { password });
+/** 與後端 POST /api/auth/login 一致：username + password（登入帳號，非 Email） */
+export async function loginWithCredentials(
+  username: string,
+  password: string,
+): Promise<LoginResult> {
+  return apiPost<LoginResult>('/api/auth/login', {
+    username: username.trim(),
+    password,
+  });
 }

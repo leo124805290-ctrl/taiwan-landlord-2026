@@ -14,7 +14,7 @@
 ## 2. 登入（取得 JWT）
 
 - **POST** `/api/auth/login`  
-  - Body: `{ "email": "admin@rental.com", "password": "<種子或正式密碼>" }`  
+  - Body: `{ "username": "admin", "password": "<種子或正式密碼>" }`（**登入帳號**，非 Email）  
   - 成功：`data.user`、`data.tokens.accessToken`（前端需寫入 localStorage／cookie 並於後續請求帶 `Authorization`）。
 
 ## 3. 後端端點（已部署即可用）

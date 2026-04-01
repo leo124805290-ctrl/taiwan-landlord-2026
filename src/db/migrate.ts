@@ -68,6 +68,71 @@ END $$;
   }
 }
 
+/** 補上 users.username、email 可為空；舊資料由 email 推導帳號 */
+async function alignUsersUsernameColumns(): Promise<void> {
+  console.log('🔧 檢查 users.username（登入帳號）與 email 可為空…');
+  try {
+    await queryClient.unsafe(`
+DO $$
+BEGIN
+  IF to_regclass('public.users') IS NULL THEN
+    RETURN;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'users' AND column_name = 'username'
+  ) THEN
+    ALTER TABLE users ADD COLUMN username VARCHAR(64);
+  END IF;
+
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'users'
+      AND column_name = 'email' AND is_nullable = 'NO'
+  ) THEN
+    ALTER TABLE users ALTER COLUMN email DROP NOT NULL;
+  END IF;
+
+  UPDATE users SET username = LOWER(REGEXP_REPLACE(TRIM(email), '@.*$', ''))
+  WHERE username IS NULL AND email IS NOT NULL AND TRIM(email) <> '';
+
+  UPDATE users SET username = 'u' || REPLACE(id::text, '-', '')
+  WHERE username IS NULL OR TRIM(username) = '';
+
+  UPDATE users u SET username = u.username || '_' || REPLACE(u.id::text, '-', '')
+  WHERE u.id IN (
+    SELECT id FROM (
+      SELECT id, ROW_NUMBER() OVER (PARTITION BY username ORDER BY created_at) AS rn
+      FROM users WHERE deleted_at IS NULL
+    ) t WHERE rn > 1
+  );
+
+  UPDATE users u SET username = u.username || '_' || REPLACE(u.id::text, '-', '')
+  WHERE u.id IN (
+    SELECT id FROM (
+      SELECT id, ROW_NUMBER() OVER (PARTITION BY username ORDER BY created_at) AS rn
+      FROM users WHERE deleted_at IS NULL
+    ) t WHERE rn > 1
+  );
+
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'users' AND column_name = 'username' AND is_nullable = 'YES'
+  ) THEN
+    ALTER TABLE users ALTER COLUMN username SET NOT NULL;
+  END IF;
+END $$;
+`);
+    await queryClient.unsafe(`
+CREATE UNIQUE INDEX IF NOT EXISTS users_username_unique ON users (username);
+`);
+    console.log('✅ users.username／email 對齊完成');
+  } catch (err) {
+    console.error('❌ users.username 對齊失敗（不阻斷啟動）:', err);
+  }
+}
+
 export async function autoMigrate() {
   console.log('🔧 自動建立資料庫表（使用 IF NOT EXISTS）...');
   
@@ -96,6 +161,8 @@ export async function autoMigrate() {
       console.error('❌ users 表建立失敗:', err);
       // 不要 throw，繼續建其他表
     }
+
+    await alignUsersUsernameColumns();
 
     try {
       await queryClient`

@@ -16,13 +16,14 @@ TypeScript + Express + Drizzle + PostgreSQL。
 ```bash
 npm install
 cp .env.example .env   # 若有的話；否則自行設定 DATABASE_URL、JWT_SECRET、PORT
-npm run db:seed          # 建立 admin@rental.com 等初始資料（密碼見終端機或 SEED_ADMIN_PASSWORD）
+npm run db:seed            # 清空並建立測試資料 + 超級管理員（預設 admin@landlord.local / 82913187，見下方）
+npm run db:ensure-admin    # 不清空：僅在尚無約定超級管理員時建立一筆
 npm run dev
 ```
 
 ## 登入與 API 保護
 
-- **POST** `/api/auth/login`：body 為 `{ "email": "admin@rental.com", "password": "…" }`，成功回傳 `data.tokens.accessToken`。
+- **POST** `/api/auth/login`：body 為 `{ "username": "admin", "password": "…" }`（**登入帳號**，非 Email）。成功回傳 `data.tokens.accessToken`。
 - 除 **`/api/auth/login`**、**`/api/auth/refresh`**、**`/api/auth/logout`** 外，其餘 **`/api/*` 皆須**標頭 `Authorization: Bearer <accessToken>`。
 - **`GET /api/debug/db-status`** 僅在 **`NODE_ENV=development`** 註冊，且開發時可不帶 token（僅供本機除錯）；正式環境不暴露此路由。
 
@@ -30,7 +31,8 @@ npm run dev
 
 - **`FRONTEND_URL`**：主前端 origin（與瀏覽器網址一致，勿尾隨 `/`）。
 - **`FRONTEND_ORIGINS_EXTRA`**：多個來源時以逗號分隔（例如 Vercel Preview、第二網域）。
-- **`SEED_ADMIN_PASSWORD`**：`npm run db:seed` 建立的管理員密碼；未設定時使用開發預設並於主控台警告，**正式環境務必設定**。
+- **`SEED_ADMIN_USERNAME`**（選用）：種子／`db:ensure-admin` 建立的超級管理員**登入帳號**（非 Email），預設 `admin`。
+- **`SEED_ADMIN_PASSWORD`**：`npm run db:seed` 與 `db:ensure-admin` 使用的密碼；未設定時預設為專案約定值（見種子輸出），**正式環境務必改為強密碼**。
 
 ## 維運與安全（建議排程）
 
@@ -59,4 +61,5 @@ npm run dev
 |------|------|
 | `npm run dev` | 開發 |
 | `npm run build` / `npm start` | 正式編譯與執行 |
+| `npm run db:ensure-admin` | 不重灌資料，僅補一筆預設超級管理員（若尚無） |
 | `npm run lint` | TypeScript 檢查 |

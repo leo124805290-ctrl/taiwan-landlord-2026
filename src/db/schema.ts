@@ -4,7 +4,10 @@ import { relations } from 'drizzle-orm';
 // ==================== 使用者表 ====================
 export const users = pgTable('users', {
   id: uuid('id').primaryKey().defaultRandom(),
-  email: varchar('email', { length: 255 }).notNull().unique(),
+  /** 登入用帳號（非 Email，全小寫儲存） */
+  username: varchar('username', { length: 64 }).notNull().unique(),
+  /** 聯絡用，選填 */
+  email: varchar('email', { length: 255 }).unique(),
   passwordHash: varchar('password_hash', { length: 255 }).notNull(),
   fullName: varchar('full_name', { length: 255 }),
   phone: varchar('phone', { length: 50 }),
@@ -17,7 +20,6 @@ export const users = pgTable('users', {
   updatedAt: timestamp('updated_at').notNull().defaultNow().$onUpdate(() => new Date()),
   deletedAt: timestamp('deleted_at'),
 }, (table) => ({
-  emailIdx: uniqueIndex('users_email_idx').on(table.email),
   roleIdx: index('users_role_idx').on(table.role),
   deletedAtIdx: index('users_deleted_at_idx').on(table.deletedAt),
 }));

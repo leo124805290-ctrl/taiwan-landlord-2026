@@ -7,8 +7,10 @@ import {
   verifyAccessToken,
   verifyRefreshToken,
 } from '../utils/jwt.js';
+import type { TokenPayload } from '../utils/jwt.js';
 import { comparePassword } from '../utils/password.js';
 import { db, schema } from '../db/index.js';
+import { normalizeUsername } from '../utils/username.js';
 
 interface ApiResponse<T = any> {
   success: boolean;
@@ -35,35 +37,44 @@ function errorResponse(message: string): ApiResponse {
 
 interface UserInfo {
   id: string;
-  email: string;
+  username: string;
+  email?: string;
   fullName?: string;
   role: string;
 }
 
 const router = Router();
 
+/** 舊 JWT 僅含 email 時補上 username */
+function payloadUsername(p: TokenPayload & { email?: string }): string {
+  if (p.username && p.username.length > 0) return p.username;
+  return p.email && p.email.includes('@')
+    ? p.email.split('@')[0] || 'user'
+    : p.email || 'user';
+}
+
 /**
  * POST /api/auth/login
- * 以資料庫使用者 email + 密碼登入（請先 npm run db:seed 建立管理員）
+ * body: { username, password } — 以「帳號」登入（非 Email）
  */
 router.post('/login', async (req: Request, res: Response) => {
   try {
-    const { email, password } = req.body as { email?: string; password?: string };
+    const { username, password } = req.body as { username?: string; password?: string };
 
-    if (!email || typeof email !== 'string' || !password || typeof password !== 'string') {
-      return res.status(400).json(errorResponse('請提供電子郵件與密碼'));
+    if (!username || typeof username !== 'string' || !password || typeof password !== 'string') {
+      return res.status(400).json(errorResponse('請提供帳號與密碼'));
     }
 
-    const normalizedEmail = email.trim().toLowerCase();
+    const normalizedUser = normalizeUsername(username);
 
     const rows = await db
       .select()
       .from(schema.users)
-      .where(and(eq(schema.users.email, normalizedEmail), isNull(schema.users.deletedAt)))
+      .where(and(eq(schema.users.username, normalizedUser), isNull(schema.users.deletedAt)))
       .limit(1);
 
     if (rows.length === 0) {
-      return res.status(401).json(errorResponse('電子郵件或密碼錯誤'));
+      return res.status(401).json(errorResponse('帳號或密碼錯誤'));
     }
 
     const userData = rows[0];
@@ -73,12 +84,13 @@ router.post('/login', async (req: Request, res: Response) => {
 
     const isValidPassword = await comparePassword(password, userData.passwordHash);
     if (!isValidPassword) {
-      return res.status(401).json(errorResponse('電子郵件或密碼錯誤'));
+      return res.status(401).json(errorResponse('帳號或密碼錯誤'));
     }
 
     const { accessToken, refreshToken, expiresIn } = generateTokenPair({
       id: userData.id,
-      email: userData.email,
+      username: userData.username,
+      email: userData.email ?? undefined,
       role: userData.role || 'admin',
       fullName: userData.fullName ?? undefined,
     });
@@ -89,7 +101,8 @@ router.post('/login', async (req: Request, res: Response) => {
 
     const user: UserInfo = {
       id: userData.id,
-      email: userData.email,
+      username: userData.username,
+      email: userData.email ?? undefined,
       fullName: userData.fullName ?? undefined,
       role: userData.role || 'admin',
     };
@@ -121,13 +134,14 @@ router.post('/refresh', async (req: Request, res: Response) => {
       return res.status(400).json(errorResponse('請提供刷新令牌'));
     }
 
-    const payload = verifyRefreshToken(refreshToken);
+    const payload = verifyRefreshToken(refreshToken) as TokenPayload & { email?: string };
     if (!payload || payload.type !== 'refresh') {
       return res.status(401).json(errorResponse('無效的刷新令牌'));
     }
 
     const newAccessToken = generateAccessToken({
       id: payload.id,
+      username: payloadUsername(payload),
       email: payload.email,
       role: payload.role,
       fullName: payload.fullName,
@@ -163,7 +177,7 @@ router.get('/me', (req: Request, res: Response) => {
     }
 
     const token = authHeader.split(' ')[1];
-    const payload = verifyAccessToken(token);
+    const payload = verifyAccessToken(token) as TokenPayload & { email?: string };
 
     if (!payload || payload.type !== 'access') {
       return res.status(401).json(errorResponse('無效的認證憑證'));
@@ -171,9 +185,10 @@ router.get('/me', (req: Request, res: Response) => {
 
     const userInfo: UserInfo = {
       id: payload.id,
+      username: payloadUsername(payload),
       email: payload.email,
-      role: payload.role,
       fullName: payload.fullName,
+      role: payload.role,
     };
 
     return res.status(200).json(successResponse(userInfo));
