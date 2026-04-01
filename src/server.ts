@@ -23,6 +23,8 @@ import vercelRouter from './routes/vercel.js';
 import { autoMigrate } from './db/migrate.js';
 import { queryClient } from './db/index.js';
 import { authenticate } from './middleware/auth.js';
+import { hashPassword } from './utils/password.js';
+import { normalizeUsername, validateUsername } from './utils/username.js';
 
 // 載入環境變數
 dotenv.config();
@@ -158,6 +160,54 @@ if (NODE_ENV === 'development') {
     }
   });
 }
+
+/**
+ * 臨時：建立或重置 admin（僅在 Zeabur 初次建立帳號時使用，請勿長期暴露）。
+ * 需設定環境變數 ALLOW_DEBUG_CREATE_ADMIN=true 才會啟用。
+ */
+app.post('/api/debug/create-admin', async (req: Request, res: Response) => {
+  const allow =
+    NODE_ENV === 'development' || process.env.ALLOW_DEBUG_CREATE_ADMIN === 'true';
+  if (!allow) {
+    res
+      .status(403)
+      .json(
+        errorResponse(
+          '此端點未啟用：請在 Zeabur 設定環境變數 ALLOW_DEBUG_CREATE_ADMIN=true 後重新部署',
+        ),
+      );
+    return;
+  }
+  try {
+    const { username, password } = req.body as { username?: string; password?: string };
+    if (!username || !password || typeof username !== 'string' || typeof password !== 'string') {
+      res.status(400).json(errorResponse('請提供 username 與 password'));
+      return;
+    }
+    const uErr = validateUsername(username);
+    if (uErr) {
+      res.status(400).json(errorResponse(uErr));
+      return;
+    }
+    const normalized = normalizeUsername(username);
+    const passwordHash = await hashPassword(password);
+    await queryClient`
+      INSERT INTO users (username, password_hash, full_name, role, is_active)
+      VALUES (${normalized}, ${passwordHash}, ${'超級管理員'}, ${'super_admin'}, true)
+      ON CONFLICT (username) DO UPDATE SET
+        password_hash = EXCLUDED.password_hash,
+        full_name = EXCLUDED.full_name,
+        role = EXCLUDED.role,
+        is_active = true,
+        deleted_at = NULL,
+        updated_at = NOW()
+    `;
+    res.json(successResponse({ message: 'admin 帳號已建立或已更新' }));
+  } catch (error) {
+    console.error('❌ create-admin:', error);
+    res.status(500).json(errorResponse('伺服器內部錯誤'));
+  }
+});
 
 // 公開認證路由必須掛在全域 JWT 中介層之前，避免反向代理下 req.path 與預期不符而誤擋 POST /api/auth/login
 app.use('/api/auth', authRouter);
