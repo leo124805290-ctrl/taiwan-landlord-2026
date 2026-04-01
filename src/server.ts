@@ -159,23 +159,18 @@ if (NODE_ENV === 'development') {
   });
 }
 
+// 公開認證路由必須掛在全域 JWT 中介層之前，避免反向代理下 req.path 與預期不符而誤擋 POST /api/auth/login
+app.use('/api/auth', authRouter);
+
 /**
- * 除 /api/auth/login、refresh、logout 外，所有 /api/* 需 Bearer JWT
+ * 除 /api/auth/*（已由 authRouter 處理）與開發用 debug 外，其餘 /api/* 需 Bearer JWT
  */
 app.use((req: Request, res: Response, next: NextFunction) => {
   if (!req.path.startsWith('/api')) {
     next();
     return;
   }
-  if (req.path === '/api/auth/login' && req.method === 'POST') {
-    next();
-    return;
-  }
-  if (req.path === '/api/auth/refresh' && req.method === 'POST') {
-    next();
-    return;
-  }
-  if (req.path === '/api/auth/logout' && req.method === 'POST') {
+  if (req.path.startsWith('/api/auth')) {
     next();
     return;
   }
@@ -190,8 +185,7 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   void authenticate(req, res, next);
 });
 
-// API 路由
-app.use('/api/auth', authRouter);
+// API 路由（需 JWT）
 app.use('/api/properties', propertiesRouter);
 app.use('/api/rooms', roomsRouter);
 app.use('/api/tenants', tenantsRouter);
