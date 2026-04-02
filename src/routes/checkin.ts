@@ -93,7 +93,12 @@ async function insertPaymentRow(
 router.post('/complete', async (req: Request, res: Response) => {
   try {
     const result = await db.transaction(async (tx) => {
-      const raw = req.body as CheckinRequest & { paymentAmount?: number; rentAmount?: number; depositAmount?: number };
+      const raw = req.body as CheckinRequest & {
+        paymentAmount?: number;
+        rentAmount?: number;
+        depositAmount?: number;
+        legacyImport?: boolean;
+      };
       const paidResolved =
         raw.paidAmount !== undefined && raw.paidAmount !== null
           ? raw.paidAmount
@@ -103,6 +108,8 @@ router.post('/complete', async (req: Request, res: Response) => {
       if (!Number.isFinite(contractTermMonths) || !CONTRACT_TERM_OPTIONS.includes(contractTermMonths as (typeof CONTRACT_TERM_OPTIONS)[number])) {
         contractTermMonths = 12;
       }
+
+      const legacyImport = raw.legacyImport === true;
 
       const checkinData: CheckinRequest = {
         ...raw,
@@ -187,56 +194,59 @@ router.post('/complete', async (req: Request, res: Response) => {
       const prorationYuan = prorationRentYuan(monthlyRentYuan, checkIn);
       const after20 = !isOnOrBeforeDay20(checkIn);
 
-      if (depositYuan > 0) {
-        await tx.insert(schema.deposits).values({
-          // @ts-ignore
-          tenantId: newTenant.id,
-          roomId: checkinData.roomId,
-          amount: yuanToCents(depositYuan),
-          type: '收取',
-          description: '入住押金',
-          depositDate: new Date(),
-          createdAt: new Date(),
-        });
-      }
+      /** 舊資料補登：不產生入住帳單／不自動寫押金流水，由前端另送 meter、deposits */
+      if (!legacyImport) {
+        if (depositYuan > 0) {
+          await tx.insert(schema.deposits).values({
+            // @ts-ignore
+            tenantId: newTenant.id,
+            roomId: checkinData.roomId,
+            amount: yuanToCents(depositYuan),
+            type: '收取',
+            description: '入住押金',
+            depositDate: new Date(),
+            createdAt: new Date(),
+          });
+        }
 
-      if (depositYuan > 0) {
-        await insertPaymentRow(tx, {
-          roomId: checkinData.roomId,
-          tenantId: newTenant.id,
-          lineType: 'deposit',
-          paymentMonth: checkInYm,
-          totalCents: yuanToCents(depositYuan),
-          rentAmountCents: 0,
-          notes: '入住押金',
-        });
-      }
+        if (depositYuan > 0) {
+          await insertPaymentRow(tx, {
+            roomId: checkinData.roomId,
+            tenantId: newTenant.id,
+            lineType: 'deposit',
+            paymentMonth: checkInYm,
+            totalCents: yuanToCents(depositYuan),
+            rentAmountCents: 0,
+            notes: '入住押金',
+          });
+        }
 
-      const daysLeft = Math.max(0, new Date(checkIn.getFullYear(), checkIn.getMonth() + 1, 0).getDate() - checkIn.getDate());
-      const rentNoteA = `${checkInYm.slice(5)}月租金（${daysLeft}天）`;
-      if (prorationYuan > 0) {
-        await insertPaymentRow(tx, {
-          roomId: checkinData.roomId,
-          tenantId: newTenant.id,
-          lineType: 'rent',
-          paymentMonth: checkInYm,
-          totalCents: yuanToCents(prorationYuan),
-          rentAmountCents: yuanToCents(prorationYuan),
-          notes: rentNoteA,
-        });
-      }
+        const daysLeft = Math.max(0, new Date(checkIn.getFullYear(), checkIn.getMonth() + 1, 0).getDate() - checkIn.getDate());
+        const rentNoteA = `${checkInYm.slice(5)}月租金（${daysLeft}天）`;
+        if (prorationYuan > 0) {
+          await insertPaymentRow(tx, {
+            roomId: checkinData.roomId,
+            tenantId: newTenant.id,
+            lineType: 'rent',
+            paymentMonth: checkInYm,
+            totalCents: yuanToCents(prorationYuan),
+            rentAmountCents: yuanToCents(prorationYuan),
+            notes: rentNoteA,
+          });
+        }
 
-      if (after20 && monthlyRentYuan > 0) {
-        const nextYm = nextCalendarMonthYm(checkIn);
-        await insertPaymentRow(tx, {
-          roomId: checkinData.roomId,
-          tenantId: newTenant.id,
-          lineType: 'rent',
-          paymentMonth: nextYm,
-          totalCents: yuanToCents(monthlyRentYuan),
-          rentAmountCents: yuanToCents(monthlyRentYuan),
-          notes: `${nextYm} 月租金（整月）`,
-        });
+        if (after20 && monthlyRentYuan > 0) {
+          const nextYm = nextCalendarMonthYm(checkIn);
+          await insertPaymentRow(tx, {
+            roomId: checkinData.roomId,
+            tenantId: newTenant.id,
+            lineType: 'rent',
+            paymentMonth: nextYm,
+            totalCents: yuanToCents(monthlyRentYuan),
+            rentAmountCents: yuanToCents(monthlyRentYuan),
+            notes: `${nextYm} 月租金（整月）`,
+          });
+        }
       }
 
       const im = raw.initialMeterReading as number | string | null | undefined;

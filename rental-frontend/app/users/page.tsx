@@ -11,7 +11,6 @@ import {
   apiPut,
   clearAllBusinessData,
   getAccessToken,
-  TOKEN_KEY,
 } from '@/lib/api';
 import { emitBusinessDataCleared } from '@/lib/events';
 
@@ -100,11 +99,6 @@ export default function UsersManagementPage() {
 
   useEffect(() => {
     syncToken();
-    const onStorage = (e: StorageEvent) => {
-      if (e.key === null || e.key === TOKEN_KEY) syncToken();
-    };
-    window.addEventListener('storage', onStorage);
-    return () => window.removeEventListener('storage', onStorage);
   }, [syncToken]);
 
   useEffect(() => {

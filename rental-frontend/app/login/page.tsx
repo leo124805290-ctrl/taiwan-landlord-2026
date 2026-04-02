@@ -64,104 +64,75 @@ export default function LoginPage() {
   }
 
   return (
-    <div
-      style={{
-        maxWidth: 400,
-        margin: '2rem auto',
-        padding: '2rem',
-        background: 'var(--surface)',
-        borderRadius: 12,
-        border: '1px solid #2d3a4d',
-      }}
-    >
-      <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
-        <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }} aria-hidden>
-          🔒
+    <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
+      <div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-8 shadow-lg">
+        <div className="mb-6 text-center">
+          <div className="mb-2 text-3xl" aria-hidden>
+            🔒
+          </div>
+          <h1 className="text-xl font-bold text-slate-900">租屋管理系統</h1>
+          <p className="mt-1 text-sm text-slate-500">請使用帳號登入（非 Email）</p>
         </div>
-        <h1 style={{ margin: 0, fontSize: '1.35rem', fontWeight: 700 }}>租屋管理系統</h1>
-      </div>
 
-      <form onSubmit={onSubmit}>
-        <div style={{ marginBottom: '1rem' }}>
-          <label>
-            <div className="muted" style={{ marginBottom: '0.35rem' }}>
-              帳號
-            </div>
+        <form onSubmit={onSubmit} className="space-y-4">
+          <div>
+            <label className="mb-1 block text-sm font-medium text-slate-700">帳號</label>
             <input
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              placeholder="請輸入帳號"
               autoComplete="username"
               required
-              style={{ maxWidth: '100%' }}
+              className="w-full rounded-md border border-slate-300 px-3 py-2 text-slate-900 focus:border-blue-600 focus:outline-none focus:ring-1 focus:ring-blue-600"
             />
-          </label>
-        </div>
-
-        <div style={{ marginBottom: '1rem' }}>
-          <div className="muted" style={{ marginBottom: '0.35rem' }}>
-            密碼
           </div>
-          <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium text-slate-700">密碼</label>
+            <div className="relative">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                autoComplete="current-password"
+                required
+                className="w-full rounded-md border border-slate-300 px-3 py-2 pr-10 text-slate-900 focus:border-blue-600 focus:outline-none focus:ring-1 focus:ring-blue-600"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((v) => !v)}
+                aria-label={showPassword ? '隱藏密碼' : '顯示密碼'}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700"
+              >
+                {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+              </button>
+            </div>
+          </div>
+
+          <label className="flex items-center gap-2 text-sm text-slate-600">
             <input
-              type={showPassword ? 'text' : 'password'}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              autoComplete="current-password"
-              required
-              style={{ maxWidth: '100%', paddingRight: '2.75rem' }}
+              type="checkbox"
+              checked={remember}
+              onChange={(e) => setRemember(e.target.checked)}
             />
-            <button
-              type="button"
-              onClick={() => setShowPassword((v) => !v)}
-              aria-label={showPassword ? '隱藏密碼' : '顯示密碼'}
-              style={{
-                position: 'absolute',
-                right: 8,
-                top: '50%',
-                transform: 'translateY(-50%)',
-                background: 'transparent',
-                border: 'none',
-                color: 'var(--muted)',
-                cursor: 'pointer',
-                padding: '0.25rem',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-            </button>
-          </div>
-        </div>
+            記住帳號與密碼（僅存於此裝置瀏覽器）
+          </label>
 
-        <label
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-            marginBottom: '1rem',
-          }}
-        >
-          <input
-            type="checkbox"
-            checked={remember}
-            onChange={(e) => setRemember(e.target.checked)}
-          />
-          <span className="muted">記住帳號與密碼（僅存於此裝置瀏覽器）</span>
-        </label>
+          {error && (
+            <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+              {error}
+            </div>
+          )}
 
-        {error && (
-          <div className="error" style={{ marginBottom: '1rem' }}>
-            {error}
-          </div>
-        )}
-
-        <button type="submit" disabled={loading} style={{ width: '100%', padding: '0.65rem' }}>
-          {loading ? '登入中…' : '登入'}
-        </button>
-      </form>
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full rounded-md bg-blue-600 py-2.5 font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+          >
+            {loading ? '登入中…' : '登入'}
+          </button>
+        </form>
+      </div>
     </div>
   );
 }

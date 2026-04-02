@@ -167,6 +167,7 @@ export const tenants = pgTable('tenants', {
   propertyIdIdx: index('tenants_property_id_idx').on(table.propertyId),
   phoneIdx: index('tenants_phone_idx').on(table.phone),
   statusIdx: index('tenants_status_idx').on(table.status),
+  actualCheckoutDateIdx: index('tenants_actual_checkout_date_idx').on(table.actualCheckoutDate),
   deletedAtIdx: index('tenants_deleted_at_idx').on(table.deletedAt),
 }));
 
