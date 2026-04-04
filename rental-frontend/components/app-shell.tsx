@@ -17,6 +17,7 @@ import {
   UserCog,
   Menu,
   X,
+  Building2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -34,6 +35,7 @@ const navItems = [
   { href: '/history', label: '歷史租約', icon: Archive },
   { href: '/import', label: '舊資料補登', icon: Upload },
   { href: '/users', label: '使用者管理', icon: UserCog },
+  { href: '/landlord-payments', label: '房東付款', icon: Building2 },
 ];
 
 function pageTitleFromPath(pathname: string): string {
