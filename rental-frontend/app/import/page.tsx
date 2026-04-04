@@ -142,11 +142,6 @@ export default function LegacyImportPage() {
     }));
   }, []);
 
-  const readingDateToday = useMemo(() => {
-    const t = new Date();
-    return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
-  }, []);
-
   const runBatch = useCallback(async () => {
     setSuccess(null);
     setError(null);
@@ -198,34 +193,30 @@ export default function LegacyImportPage() {
           continue;
         }
 
+        const mv = Number(d.meterReading);
         const res = await apiPost<{
-          tenant: { id: string };
+          tenant?: { id: string };
+          data?: { tenant?: { id: string } };
         }>('/api/checkin/complete', {
           roomId: room.id,
           propertyId,
           nameZh: d.name.trim(),
           nameVi: d.name.trim(),
           phone: d.phone.trim(),
-          passportNumber: d.passport.trim() || undefined,
+          passportNumber: d.passport.trim() || '',
           checkInDate: d.checkInDate,
           contractTermMonths: d.contractMonths,
+          initialMeterReading: Math.round(mv),
           legacyImport: true,
           paidAmount: 0,
           notes: notesLine || undefined,
         });
 
-        const tenantId = res.tenant?.id;
+        const tenantId = res.tenant?.id ?? res.data?.tenant?.id;
         if (!tenantId) {
           errs.push(`${room.roomNumber}：入住成功但未取得租客 ID`);
           continue;
         }
-
-        const mv = Number(d.meterReading);
-        await apiPost('/api/meter-readings', {
-          roomId: room.id,
-          readingValue: Math.round(mv),
-          readingDate: readingDateToday,
-        });
 
         if (d.depositCollected) {
           const dy = Number(d.depositYuan);
@@ -235,7 +226,7 @@ export default function LegacyImportPage() {
               roomId: room.id,
               amount: yuanToCents(dy),
               type: '收取',
-              description: '舊資料補登：已收押金',
+              description: '舊資料補登',
             });
           }
         }
@@ -250,7 +241,7 @@ export default function LegacyImportPage() {
 
     setSubmitting(false);
     if (ok > 0) {
-      setSuccess(`已匯入 ${ok} 間房間的租客資料。`);
+      setSuccess(`已匯入 ${ok} 間`);
     }
     if (errs.length > 0) {
       setError(errs.join('；'));
@@ -264,14 +255,15 @@ export default function LegacyImportPage() {
         /* ignore refresh */
       }
     }
-  }, [vacantRooms, drafts, propertyId, readingDateToday]);
+  }, [vacantRooms, drafts, propertyId]);
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
       <div>
         <h1 className="text-xl font-semibold text-slate-900">舊資料補登</h1>
         <p className="mt-1 text-sm text-slate-600">
-          將系統上線前已在住的租客一次性登入（僅限初期使用）。不觸發入住合約簽名；不產生入住當月帳單。
+          將系統上線前已在住的租客一次性登入（僅限初期使用）。不觸發入住合約簽名；入住 API 以 legacyImport
+          跳過自動帳單，電錶度數一併寫入，不重複 POST 抄表。
         </p>
       </div>
 
