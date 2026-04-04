@@ -2,263 +2,158 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { ApiError } from '@/lib/api';
-import {
-  fetchHistoryList,
-  fetchProperties,
-  fetchRooms,
-  formatDateZh,
-  type HistoryTenantRow,
-  type PropertyRow,
-  type RoomRow,
-} from '@/lib/lease-history';
+import { ApiError, apiGet } from '@/lib/api';
+import { formatDateSlash } from '@/lib/api-client';
+
+type Tenant = {
+  id: string;
+  roomId: string;
+  propertyId: string;
+  nameZh: string;
+  nameVi: string;
+  phone: string;
+  checkInDate: string;
+  actualCheckoutDate: string | null;
+};
+
+type RoomDetail = {
+  id: string;
+  propertyId: string;
+  roomNumber: string;
+  monthlyRent: number;
+};
+
+type PropertyDetail = {
+  id: string;
+  name: string;
+};
+
+type Row = Tenant & {
+  roomNumber: string;
+  propertyName: string;
+  monthlyRentYuan: number;
+};
+
+async function fetchJson<T>(path: string): Promise<T | null> {
+  try {
+    return await apiGet<T>(path);
+  } catch {
+    return null;
+  }
+}
 
 export default function HistoryPage() {
-  const [items, setItems] = useState<HistoryTenantRow[]>([]);
-  const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(1);
-  const pageSize = 20;
+  const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  const [properties, setProperties] = useState<PropertyRow[]>([]);
-  const [rooms, setRooms] = useState<RoomRow[]>([]);
-  const [propertyId, setPropertyId] = useState('');
-  const [roomId, setRoomId] = useState('');
-  const [checkoutFrom, setCheckoutFrom] = useState('');
-  const [checkoutTo, setCheckoutTo] = useState('');
-  const [q, setQ] = useState('');
-
-  const loadMeta = useCallback(async () => {
-    try {
-      const [p, r] = await Promise.all([fetchProperties(), fetchRooms()]);
-      setProperties(p);
-      setRooms(r);
-    } catch {
-      setProperties([]);
-      setRooms([]);
-    }
-  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetchHistoryList({
-        page,
-        pageSize,
-        propertyId: propertyId || undefined,
-        roomId: roomId || undefined,
-        checkoutFrom: checkoutFrom || undefined,
-        checkoutTo: checkoutTo || undefined,
-        q: q || undefined,
+      const tenants = await apiGet<Tenant[]>('/api/tenants?status=checked_out');
+      const roomIds = Array.from(new Set(tenants.map((t) => t.roomId)));
+      const propIds = Array.from(new Set(tenants.map((t) => t.propertyId)));
+
+      const [rooms, props] = await Promise.all([
+        Promise.all(roomIds.map((id) => fetchJson<RoomDetail>(`/api/rooms/${id}`))),
+        Promise.all(propIds.map((id) => fetchJson<PropertyDetail>(`/api/properties/${id}`))),
+      ]);
+
+      const roomMap = new Map<string, RoomDetail>();
+      roomIds.forEach((id, i) => {
+        const r = rooms[i];
+        if (r) roomMap.set(id, r);
       });
-      setItems(res.items);
-      setTotal(res.total);
+      const propMap = new Map<string, PropertyDetail>();
+      propIds.forEach((id, i) => {
+        const p = props[i];
+        if (p) propMap.set(id, p);
+      });
+
+      const enriched: Row[] = tenants.map((t) => {
+        const room = roomMap.get(t.roomId);
+        const prop = propMap.get(t.propertyId);
+        return {
+          ...t,
+          roomNumber: room?.roomNumber ?? '—',
+          propertyName: prop?.name ?? '—',
+          monthlyRentYuan: room != null ? Number(room.monthlyRent) || 0 : 0,
+        };
+      });
+
+      setRows(enriched);
     } catch (e) {
-      setItems([]);
-      setTotal(0);
+      setRows([]);
       setError(e instanceof ApiError ? e.message : '載入失敗');
     } finally {
       setLoading(false);
     }
-  }, [page, propertyId, roomId, checkoutFrom, checkoutTo, q]);
+  }, []);
 
   useEffect(() => {
-    loadMeta();
-  }, [loadMeta]);
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      if (!propertyId) {
-        if (!cancelled) setRooms(await fetchRooms());
-        return;
-      }
-      const list = await fetchRooms(propertyId);
-      if (!cancelled) setRooms(list);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [propertyId]);
-
-  useEffect(() => {
-    load();
+    void load();
   }, [load]);
 
-  const totalPages = Math.max(1, Math.ceil(total / pageSize));
-
   return (
-    <div>
-      <h1>歷史租約（已終止）</h1>
-      <p className="muted">
-        僅顯示已退租（<code>checked_out</code>）且有實際退租日之紀錄，供查詢歸檔。辦理退租請使用退租結算流程。
+    <div className="mx-auto max-w-6xl space-y-4">
+      <p className="text-sm text-slate-600">
+        已退租租客（<code className="rounded bg-slate-100 px-1">GET /api/tenants?status=checked_out</code>
+        ）；房號／物業／月租由房間與物業 API 補齊。
       </p>
 
-      <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', alignItems: 'flex-end' }}>
-          <label>
-            <span className="muted">物業</span>
-            <br />
-            <select
-              value={propertyId}
-              onChange={(e) => {
-                setPropertyId(e.target.value);
-                setRoomId('');
-                setPage(1);
-              }}
-              style={{ minWidth: '160px', marginTop: '0.25rem' }}
-            >
-              <option value="">全部</option>
-              {properties.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            <span className="muted">房間</span>
-            <br />
-            <select
-              value={roomId}
-              onChange={(e) => {
-                setRoomId(e.target.value);
-                setPage(1);
-              }}
-              style={{ minWidth: '120px', marginTop: '0.25rem' }}
-            >
-              <option value="">全部</option>
-              {rooms.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.roomNumber} 樓{r.floor}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            <span className="muted">退租日起</span>
-            <br />
-            <input
-              type="date"
-              value={checkoutFrom}
-              onChange={(e) => {
-                setCheckoutFrom(e.target.value);
-                setPage(1);
-              }}
-            />
-          </label>
-          <label>
-            <span className="muted">退租日迄</span>
-            <br />
-            <input
-              type="date"
-              value={checkoutTo}
-              onChange={(e) => {
-                setCheckoutTo(e.target.value);
-                setPage(1);
-              }}
-            />
-          </label>
-          <label style={{ flex: '1 1 200px' }}>
-            <span className="muted">姓名／電話</span>
-            <br />
-            <input
-              type="search"
-              value={q}
-              placeholder="關鍵字"
-              onChange={(e) => setQ(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  setPage(1);
-                  load();
-                }
-              }}
-              style={{ width: '100%', marginTop: '0.25rem' }}
-            />
-          </label>
-          <button
-            type="button"
-            onClick={() => {
-              setPage(1);
-              load();
-            }}
-            disabled={loading}
-          >
-            套用篩選
-          </button>
-        </div>
-      </div>
-
-      {loading && <p className="muted">載入中…</p>}
-      {error && <div className="error">{error}</div>}
+      {loading && <p className="text-slate-500">載入中…</p>}
+      {error && (
+        <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div>
+      )}
 
       {!loading && !error && (
-        <>
-          <p className="muted">
-            共 {total} 筆，第 {page} / {totalPages} 頁（依實際退租日新到舊）
-          </p>
-          <div className="card" style={{ overflowX: 'auto' }}>
-            <table>
-              <thead>
+        <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
+          <table className="w-full min-w-[720px] text-sm">
+            <thead>
+              <tr className="border-b bg-slate-50 text-left">
+                <th className="px-3 py-2">租客</th>
+                <th className="px-3 py-2">房號</th>
+                <th className="px-3 py-2">物業</th>
+                <th className="px-3 py-2">入住日</th>
+                <th className="px-3 py-2">退租日</th>
+                <th className="px-3 py-2">月租（元）</th>
+                <th className="px-3 py-2 text-right">操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.length === 0 ? (
                 <tr>
-                  <th>物業</th>
-                  <th>房號</th>
-                  <th>租客</th>
-                  <th>電話</th>
-                  <th>入住日</th>
-                  <th>實際退租日</th>
-                  <th></th>
+                  <td colSpan={7} className="px-3 py-6 text-center text-slate-500">
+                    尚無已退租紀錄
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {items.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} className="muted">
-                      尚無符合條件的歷史租約
+              ) : (
+                rows.map((r) => (
+                  <tr key={r.id} className="border-b border-slate-100">
+                    <td className="px-3 py-2">
+                      <span className="font-medium text-slate-900">{r.nameZh}</span>
+                      <span className="text-slate-500"> / {r.nameVi}</span>
+                    </td>
+                    <td className="px-3 py-2">{r.roomNumber}</td>
+                    <td className="px-3 py-2">{r.propertyName}</td>
+                    <td className="px-3 py-2">{formatDateSlash(r.checkInDate)}</td>
+                    <td className="px-3 py-2">{formatDateSlash(r.actualCheckoutDate)}</td>
+                    <td className="px-3 py-2">${r.monthlyRentYuan.toLocaleString('zh-TW')}</td>
+                    <td className="px-3 py-2 text-right">
+                      <Link
+                        href={`/history/${r.id}`}
+                        className="font-medium text-blue-600 hover:text-blue-800"
+                      >
+                        查看
+                      </Link>
                     </td>
                   </tr>
-                ) : (
-                  items.map((row) => (
-                    <tr key={row.id}>
-                      <td>{row.propertyName}</td>
-                      <td>{row.roomNumber}</td>
-                      <td>
-                        {row.nameZh}
-                        <span className="muted"> / {row.nameVi}</span>
-                      </td>
-                      <td>{row.phone}</td>
-                      <td>{formatDateZh(row.checkInDate)}</td>
-                      <td>{formatDateZh(row.actualCheckoutDate)}</td>
-                      <td>
-                        <Link href={`/history/${row.id}`}>詳情</Link>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-          {totalPages > 1 && (
-            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-              <button
-                type="button"
-                disabled={page <= 1 || loading}
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-              >
-                上一頁
-              </button>
-              <button
-                type="button"
-                disabled={page >= totalPages || loading}
-                onClick={() => setPage((p) => p + 1)}
-              >
-                下一頁
-              </button>
-            </div>
-          )}
-        </>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );

@@ -32,10 +32,10 @@ const navItems = [
   { href: '/finance', label: '收支管理', icon: Wallet },
   { href: '/reports', label: '損益報表', icon: BarChart3 },
   { href: '/meter-history', label: '電錶歷史', icon: Gauge },
-  { href: '/history', label: '歷史租約', icon: Archive },
-  { href: '/import', label: '舊資料補登', icon: Upload },
   { href: '/users', label: '使用者管理', icon: UserCog },
   { href: '/landlord-payments', label: '房東付款', icon: Building2 },
+  { href: '/history', label: '歷史租約', icon: Archive },
+  { href: '/import', label: '舊資料補登', icon: Upload },
 ];
 
 function pageTitleFromPath(pathname: string): string {
@@ -79,7 +79,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       {open && (
         <button
           type="button"
-          className="fixed inset-0 z-40 bg-black/50 lg:hidden"
+          className="fixed inset-0 z-40 bg-black/50 lg:hidden print:hidden"
           aria-label="關閉選單"
           onClick={() => setOpen(false)}
         />
@@ -87,7 +87,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       <aside
         className={cn(
-          'fixed inset-y-0 left-0 z-50 flex w-64 flex-col bg-slate-900 text-white transition-transform lg:static lg:translate-x-0',
+          'fixed inset-y-0 left-0 z-50 flex w-64 flex-col bg-slate-900 text-white transition-transform print:hidden lg:static lg:translate-x-0',
           open ? 'translate-x-0' : '-translate-x-full',
         )}
       >
@@ -133,7 +133,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               type="button"
               variant="ghost"
               size="icon"
-              className="lg:hidden"
+              className="lg:hidden print:hidden"
               onClick={() => setOpen(true)}
               aria-label="開啟選單"
             >
@@ -141,7 +141,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             </Button>
             <h1 className="text-lg font-semibold text-slate-900">{pageTitleFromPath(pathname)}</h1>
           </div>
-          <div className="flex items-center gap-4 text-sm text-slate-600">
+          <div className="flex items-center gap-4 text-sm text-slate-600 print:hidden">
             <span>{todayStr}</span>
             <Button type="button" variant="outline" size="sm" onClick={handleLogout}>
               登出
